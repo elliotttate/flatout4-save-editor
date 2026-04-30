@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FlatOut4SaveEditor (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "FlatOut4SaveEditor (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
