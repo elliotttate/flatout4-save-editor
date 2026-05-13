@@ -5,13 +5,14 @@ A small WinUI 3 utility for inspecting and editing FlatOut 4 save files.
 ## Features
 
 - Opens FlatOut 4 `Save` files directly.
-- Finds local Steam Cloud saves under `Steam\userdata\<steamid>\<appid>\remote\Save`.
-- Checks both app ids currently used by this editor: `3844750` and `402130`.
+- Finds local Steam Cloud saves under `Steam\userdata\<steamid>\<appid>\remote\Save` and the current VR path `remote\Flatout VR\Save.dat`.
+- Checks both app ids currently used by this editor: `402130` and `3844750`.
+- Prompts you to choose when multiple supported saves are found across Steam users, app ids, or offline folders.
 - Also checks common offline save folders under Documents and LocalAppData.
 - Shows save values with friendly names instead of raw offsets.
 - Validates edited values as you type.
 - Creates an optional backup before writing changes.
-- Supports V87, V88, V89, and V90 save layouts, migrating older supported saves in memory before writing.
+- Supports V82 through V95 save layouts, migrating older supported saves in memory before writing.
 
 ## Download
 

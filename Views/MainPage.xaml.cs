@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.Services;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml.Media;
 using WinRT.Interop;
 
@@ -56,20 +57,30 @@ namespace FlatOut4SaveEditor.Views
         {
             try
             {
-                IReadOnlyList<string> saves = FlatOut4SaveFile.FindSteamCloudSaves();
-                if (saves.Count == 0)
+                IReadOnlyList<FlatOut4SaveCandidate> candidates = FlatOut4SaveFile.FindSaveCandidates(schema);
+                if (candidates.Count == 0)
                 {
                     string checkedLocations = string.Join(Environment.NewLine, FlatOut4SaveFile.GetCheckedSaveLocations());
                     await ShowMessage(
                         "No FlatOut 4 save found",
-                        $"Checked Steam Cloud app ids 3844750 and 402130, plus offline save folders.{Environment.NewLine}{Environment.NewLine}{checkedLocations}{Environment.NewLine}{Environment.NewLine}Use Open Save to browse manually if your file is somewhere else.");
+                        $"Checked exact Steam Cloud and offline save locations first, then fallback save-like files in those same folders.{Environment.NewLine}{Environment.NewLine}{checkedLocations}{Environment.NewLine}{Environment.NewLine}Use Open Save to browse manually if your file is somewhere else.");
                     return;
                 }
 
-                LoadSave(saves[0]);
-                StatusText.Text = saves.Count == 1
-                    ? "Loaded detected Steam Cloud save."
-                    : $"Loaded newest detected Steam Cloud save. Found {saves.Count} matching files.";
+                FlatOut4SaveCandidate? selected = candidates.Count == 1
+                    ? candidates[0]
+                    : await ShowSavePicker(candidates);
+
+                if (selected is null)
+                {
+                    StatusText.Text = $"Found {candidates.Count:N0} supported save files.";
+                    return;
+                }
+
+                LoadSave(selected.Path);
+                StatusText.Text = candidates.Count == 1
+                    ? $"Loaded detected save from {selected.Source}."
+                    : $"Loaded selected save from {selected.Source}. Found {candidates.Count:N0} supported save files.";
             }
             catch (Exception ex)
             {
@@ -211,12 +222,89 @@ namespace FlatOut4SaveEditor.Views
             _ = await dialog.ShowAsync();
         }
 
+        private async Task<FlatOut4SaveCandidate?> ShowSavePicker(IReadOnlyList<FlatOut4SaveCandidate> candidates)
+        {
+            var list = new ListView
+            {
+                SelectionMode = ListViewSelectionMode.Single,
+                MaxHeight = 420
+            };
+
+            foreach (FlatOut4SaveCandidate candidate in candidates)
+            {
+                list.Items.Add(CreateCandidateItem(candidate));
+            }
+
+            list.SelectedIndex = 0;
+
+            var content = new StackPanel
+            {
+                Spacing = 12
+            };
+            content.Children.Add(new TextBlock
+            {
+                Text = "Multiple supported FlatOut 4 saves were found. Choose the one to open.",
+                TextWrapping = TextWrapping.Wrap
+            });
+            content.Children.Add(list);
+
+            var dialog = new ContentDialog
+            {
+                Title = "Choose save file",
+                Content = content,
+                PrimaryButtonText = "Open selected",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = XamlRoot
+            };
+
+            ContentDialogResult result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return null;
+            }
+
+            return list.SelectedItem is ListViewItem { Tag: FlatOut4SaveCandidate selectedCandidate }
+                ? selectedCandidate
+                : candidates[0];
+        }
+
+        private static ListViewItem CreateCandidateItem(FlatOut4SaveCandidate candidate)
+        {
+            var content = new StackPanel
+            {
+                Spacing = 2
+            };
+            content.Children.Add(new TextBlock
+            {
+                Text = candidate.Title,
+                FontWeight = FontWeights.SemiBold,
+                TextWrapping = TextWrapping.Wrap
+            });
+            content.Children.Add(new TextBlock
+            {
+                Text = candidate.Details,
+                TextWrapping = TextWrapping.Wrap
+            });
+            content.Children.Add(new TextBlock
+            {
+                Text = candidate.Path,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            return new ListViewItem
+            {
+                Content = content,
+                Tag = candidate
+            };
+        }
+
         private string GetBestInitialDirectory()
         {
-            IReadOnlyList<string> saves = FlatOut4SaveFile.FindSteamCloudSaves();
+            IReadOnlyList<FlatOut4SaveCandidate> saves = FlatOut4SaveFile.FindSaveCandidates(schema);
             if (saves.Count > 0)
             {
-                return Path.GetDirectoryName(saves[0]) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                return Path.GetDirectoryName(saves[0].Path) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             }
 
             string documentsSave = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "FlatOut 4");
@@ -232,7 +320,7 @@ namespace FlatOut4SaveEditor.Views
             {
                 lStructSize = Marshal.SizeOf<OpenFileName>(),
                 hwndOwner = WindowNative.GetWindowHandle(App.MainWindow),
-                lpstrFilter = "FlatOut 4 save (Save)\0Save\0All files (*.*)\0*.*\0\0",
+                lpstrFilter = "FlatOut 4 save (Save; Save.dat)\0Save;Save.dat\0All files (*.*)\0*.*\0\0",
                 lpstrFile = fileName,
                 nMaxFile = fileName.Capacity,
                 lpstrInitialDir = GetBestInitialDirectory(),

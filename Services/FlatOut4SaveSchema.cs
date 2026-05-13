@@ -5,10 +5,52 @@ namespace FlatOut4SaveEditor.Services;
 public sealed class FlatOut4SaveSchema
 {
     public const uint FooterValue = 0x204F4F46; // "FOO " in little-endian saves
-    public const uint CurrentVersion = 90;
+    public const uint CurrentVersion = 95;
+    public const uint EarliestSupportedVersion = 82;
     public const int GameOptionsOffset = 12;
-    public const int V88GameOptionsSize = 940;
-    public const int GameOptionsSize = 1060;
+    public const int UInt32Size = 4;
+    public const int BindingDeviceCount = 3;
+    public const int ControllerSettingCount = 11;
+    public const int AudioVolumeCount = 5;
+    public const int V82BoundActionCount = 50;
+    public const int V90BoundActionCount = 58;
+    public const int V91BoundActionCount = 59;
+    public const int CurrentBoundActionCount = 60;
+    public const int V90MenuBindingCount = 10;
+    public const int CurrentMenuBindingCount = 11;
+    public const int V82GameplayOptionsSize = 36;
+    public const int V83GameplayOptionsSize = 52;
+    public const int V84GameplayOptionsSize = 56;
+    public const int V85GameplayOptionsSize = 60;
+    public const int V86GameplayOptionsSize = 64;
+    public const int V92GameplayOptionsSize = 92;
+    public const int V93GameplayOptionsSize = 96;
+    public const int V94GameplayOptionsSize = 100;
+    public const int CurrentGameplayOptionsSize = 104;
+    public const int DeviceSettingsSize = BindingDeviceCount * ControllerSettingCount * UInt32Size;
+    public const int AudioVolumesSize = AudioVolumeCount * UInt32Size;
+    public const int V82InputBindingSize = BindingDeviceCount * V82BoundActionCount * UInt32Size;
+    public const int V90InputBindingSize = BindingDeviceCount * V90BoundActionCount * UInt32Size;
+    public const int V91InputBindingSize = BindingDeviceCount * V91BoundActionCount * UInt32Size;
+    public const int CurrentInputBindingSize = BindingDeviceCount * CurrentBoundActionCount * UInt32Size;
+    public const int V90MenuBindingSize = BindingDeviceCount * V90MenuBindingCount * UInt32Size;
+    public const int CurrentMenuBindingSize = BindingDeviceCount * CurrentMenuBindingCount * UInt32Size;
+    public const int CurrentUserBindingsOffset = CurrentGameplayOptionsSize;
+    public const int CurrentDeviceSettingsOffset = CurrentUserBindingsOffset + CurrentInputBindingSize;
+    public const int CurrentAudioVolumesOffset = CurrentDeviceSettingsOffset + DeviceSettingsSize;
+    public const int CurrentMenuBindingsOffset = CurrentAudioVolumesOffset + AudioVolumesSize;
+    public const int V82GameOptionsSize = V82GameplayOptionsSize + V82InputBindingSize + DeviceSettingsSize + AudioVolumesSize;
+    public const int V83GameOptionsSize = V83GameplayOptionsSize + V82InputBindingSize + DeviceSettingsSize + AudioVolumesSize;
+    public const int V84GameOptionsSize = V84GameplayOptionsSize + V82InputBindingSize + DeviceSettingsSize + AudioVolumesSize;
+    public const int V85GameOptionsSize = V85GameplayOptionsSize + V82InputBindingSize + DeviceSettingsSize + AudioVolumesSize;
+    public const int V86GameOptionsSize = V86GameplayOptionsSize + V90InputBindingSize + DeviceSettingsSize + AudioVolumesSize;
+    public const int V88GameOptionsSize = V92GameplayOptionsSize + V90InputBindingSize + DeviceSettingsSize + AudioVolumesSize;
+    public const int V90GameOptionsSize = V88GameOptionsSize + V90MenuBindingSize;
+    public const int V91GameOptionsSize = V92GameplayOptionsSize + V91InputBindingSize + DeviceSettingsSize + AudioVolumesSize + CurrentMenuBindingSize;
+    public const int V92GameOptionsSize = V92GameplayOptionsSize + CurrentInputBindingSize + DeviceSettingsSize + AudioVolumesSize + CurrentMenuBindingSize;
+    public const int V93GameOptionsSize = V93GameplayOptionsSize + CurrentInputBindingSize + DeviceSettingsSize + AudioVolumesSize + CurrentMenuBindingSize;
+    public const int V94GameOptionsSize = V94GameplayOptionsSize + CurrentInputBindingSize + DeviceSettingsSize + AudioVolumesSize + CurrentMenuBindingSize;
+    public const int GameOptionsSize = CurrentGameplayOptionsSize + CurrentInputBindingSize + DeviceSettingsSize + AudioVolumesSize + CurrentMenuBindingSize;
 
     private FlatOut4SaveSchema(IReadOnlyList<SaveFieldDefinition> fields, int serializableSize)
     {
@@ -86,6 +128,9 @@ public sealed class FlatOut4SaveSchema
         b.AddUInt32("Options", "m_oGameOptions.m_oGameplayOptions.m_uVRMotionAutoRecenterIdle", OnOffLabels);
         b.AddUInt32("Options", "m_oGameOptions.m_oGameplayOptions.m_uVRMotionDominantHand", DominantHandLabels);
         b.AddUInt32("Options", "m_oGameOptions.m_oGameplayOptions.m_uVRMotionEnableHaptic", OnOffLabels);
+        b.AddUInt32("Options", "m_oGameOptions.m_oGameplayOptions.m_uDisableCameraShake", OnOffLabels);
+        b.AddUInt32("Options", "m_oGameOptions.m_oGameplayOptions.m_uComfortVignette", ComfortVignetteLabels);
+        b.AddUInt32("Options", "m_oGameOptions.m_oGameplayOptions.m_uInputPrimaryFamily", InputPrimaryFamilyLabels);
 
         for (int device = 0; device < BindingDeviceNames.Length; device++)
         {
@@ -431,6 +476,24 @@ public sealed class FlatOut4SaveSchema
         [1] = "Right"
     };
 
+    private static readonly IReadOnlyDictionary<long, string> ComfortVignetteLabels = new Dictionary<long, string>
+    {
+        [0] = "Off",
+        [1] = "Low",
+        [2] = "Medium",
+        [3] = "High"
+    };
+
+    private static readonly IReadOnlyDictionary<long, string> InputPrimaryFamilyLabels = new Dictionary<long, string>
+    {
+        [0] = "Auto",
+        [1] = "Wheel",
+        [2] = "Gamepad",
+        [3] = "Keyboard",
+        [4] = "VR Motion",
+        [5] = "VR Joystick"
+    };
+
     private static readonly IReadOnlyDictionary<long, string> ScoreObjectiveLabels = new Dictionary<long, string>
     {
         [0] = "Bronze",
@@ -490,6 +553,7 @@ public sealed class FlatOut4SaveSchema
         "ACTION_RACE_COMMANDED_RESPAWN",
         "ACTION_RACE_TOGGLE_WIPERS",
         "ACTION_RACE_TOGGLE_HEADLIGHTS",
+        "ACTION_RACE_CLUTCH",
         "FO_ACTION_START_RACE",
         "FO_DEBUG_TOGGLE_HUD",
         "FO_ACTION_NEXT_SPECTATE_CAM",
@@ -514,7 +578,8 @@ public sealed class FlatOut4SaveSchema
         "FO_DEBUG_SWITCH_DAYTIME_UP",
         "FO_DEBUG_SWITCH_DAYTIME_DOWN",
         "FO_ACTION_SPECTATE_GAMERTAG",
-        "FO_ACTION_SKIP_MUSIC"
+        "FO_ACTION_SKIP_MUSIC",
+        "FO_ACTION_VR_HMD_RECENTER"
     ];
 
     private static readonly string[] ControllerSettingNames =
@@ -552,7 +617,8 @@ public sealed class FlatOut4SaveSchema
         "Up",
         "Down",
         "Left",
-        "Right"
+        "Right",
+        "ViewRecenter"
     ];
 
     private static readonly string[] ScoreObjectiveNames =
