@@ -1,10 +1,9 @@
 using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
-using System.Text;
 using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.Services;
 using Microsoft.UI.Text;
-using Microsoft.UI.Xaml.Media;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 using WinRT.Interop;
 
 namespace FlatOut4SaveEditor.Views
@@ -44,9 +43,9 @@ namespace FlatOut4SaveEditor.Views
 
         public ObservableCollection<SaveFieldViewModel> VisibleFields { get; }
 
-        private void OnOpenClicked(object sender, RoutedEventArgs e)
+        private async void OnOpenClicked(object sender, RoutedEventArgs e)
         {
-            string? path = ShowOpenFileDialog();
+            string? path = await ShowOpenFileDialogAsync();
             if (!string.IsNullOrWhiteSpace(path))
             {
                 LoadSave(path);
@@ -299,73 +298,19 @@ namespace FlatOut4SaveEditor.Views
             };
         }
 
-        private string GetBestInitialDirectory()
+        private async Task<string?> ShowOpenFileDialogAsync()
         {
-            IReadOnlyList<FlatOut4SaveCandidate> saves = FlatOut4SaveFile.FindSaveCandidates(schema);
-            if (saves.Count > 0)
+            var picker = new FileOpenPicker
             {
-                return Path.GetDirectoryName(saves[0].Path) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            }
-
-            string documentsSave = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "FlatOut 4");
-            return Directory.Exists(documentsSave)
-                ? documentsSave
-                : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        }
-
-        private string? ShowOpenFileDialog()
-        {
-            var fileName = new StringBuilder(4096);
-            var openFileName = new OpenFileName
-            {
-                lStructSize = Marshal.SizeOf<OpenFileName>(),
-                hwndOwner = WindowNative.GetWindowHandle(App.MainWindow),
-                lpstrFilter = "FlatOut 4 save (Save; Save.dat)\0Save;Save.dat\0All files (*.*)\0*.*\0\0",
-                lpstrFile = fileName,
-                nMaxFile = fileName.Capacity,
-                lpstrInitialDir = GetBestInitialDirectory(),
-                lpstrTitle = "Open FlatOut 4 Save",
-                Flags = OfnExplorer | OfnFileMustExist | OfnPathMustExist | OfnHideReadOnly | OfnNoChangeDir
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+                ViewMode = PickerViewMode.List
             };
 
-            return GetOpenFileName(ref openFileName) ? openFileName.lpstrFile.ToString() : null;
-        }
+            picker.FileTypeFilter.Add("*");
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
 
-        private const int OfnHideReadOnly = 0x00000004;
-        private const int OfnNoChangeDir = 0x00000008;
-        private const int OfnFileMustExist = 0x00001000;
-        private const int OfnPathMustExist = 0x00000800;
-        private const int OfnExplorer = 0x00080000;
-
-        [DllImport("comdlg32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool GetOpenFileName(ref OpenFileName openFileName);
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct OpenFileName
-        {
-            public int lStructSize;
-            public IntPtr hwndOwner;
-            public IntPtr hInstance;
-            public string? lpstrFilter;
-            public string? lpstrCustomFilter;
-            public int nMaxCustFilter;
-            public int nFilterIndex;
-            public StringBuilder lpstrFile;
-            public int nMaxFile;
-            public StringBuilder? lpstrFileTitle;
-            public int nMaxFileTitle;
-            public string? lpstrInitialDir;
-            public string? lpstrTitle;
-            public int Flags;
-            public short nFileOffset;
-            public short nFileExtension;
-            public string? lpstrDefExt;
-            public IntPtr lCustData;
-            public IntPtr lpfnHook;
-            public string? lpTemplateName;
-            public IntPtr pvReserved;
-            public int dwReserved;
-            public int FlagsEx;
+            StorageFile? file = await picker.PickSingleFileAsync();
+            return file?.Path;
         }
     }
 }
