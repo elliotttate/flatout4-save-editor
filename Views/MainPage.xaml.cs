@@ -113,6 +113,36 @@ namespace FlatOut4SaveEditor.Views
             }
         }
 
+        private async void OnUnlockAllClicked(object sender, RoutedEventArgs e)
+        {
+            if (document is null)
+            {
+                return;
+            }
+
+            if (!CommitAllDrafts())
+            {
+                await ShowMessage("Some edits are invalid", "Fix the rows with errors before using Unlock All.");
+                return;
+            }
+
+            try
+            {
+                FlatOut4UnlockAllResult result = FlatOut4SaveUnlocker.ApplyDebugUnlockAll(document, schema);
+                ResetDrafts();
+                ApplyFilter();
+                UpdateChrome();
+
+                StatusText.Text = result.Changed
+                    ? $"Applied Unlock All: {result.CareerEventsCompleted:N0} career events completed, {result.GarageEntriesUnlocked:N0} garage entries unlocked, {result.ChallengeValuesMaxed:N0} challenge values maxed. Save to write the file."
+                    : "Unlock All was already applied.";
+            }
+            catch (Exception ex)
+            {
+                await ShowMessage("Unlock All failed", ex.Message);
+            }
+        }
+
         private void OnFilterChanged(object sender, object e)
         {
             ApplyFilter();
@@ -202,6 +232,7 @@ namespace FlatOut4SaveEditor.Views
         {
             bool hasDocument = document is not null;
             SaveButton.IsEnabled = hasDocument;
+            UnlockAllButton.IsEnabled = hasDocument;
             if (!hasDocument)
             {
                 FieldCountText.Text = $"0 shown / {schema.Fields.Count:N0} total";

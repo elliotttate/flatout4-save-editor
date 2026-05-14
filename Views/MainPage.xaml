@@ -21,6 +21,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -39,9 +40,15 @@
                 Click="OnSaveClicked"
                 Content="Save"
                 IsEnabled="False" />
+            <Button
+                x:Name="UnlockAllButton"
+                Grid.Column="3"
+                Click="OnUnlockAllClicked"
+                Content="Unlock All"
+                IsEnabled="False" />
             <CheckBox
                 x:Name="BackupCheckBox"
-                Grid.Column="3"
+                Grid.Column="4"
                 HorizontalAlignment="Right"
                 Content="Create backup on save"
                 IsChecked="True"

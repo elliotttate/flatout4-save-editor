@@ -11,14 +11,15 @@ A small WinUI 3 utility for inspecting and editing FlatOut 4 save files.
 - Also checks common offline save folders under Documents and LocalAppData.
 - Shows save values with friendly names instead of raw offsets.
 - Validates edited values as you type.
+- Unlocks all career events, challenge records, cars, tracks, drivers, skins, boost FX, and horns using the same save fields as the game's debug unlock path.
 - Creates an optional backup before writing changes.
 - Supports V82 through V95 save layouts, migrating older supported saves in memory before writing.
 
 ## Download
 
-Use the latest GitHub release and download the `FlatOut4SaveEditor-win-x64.zip` asset.
+Use the latest GitHub release and download the `FlatOut4SaveEditor-v<version>-Setup.exe` asset.
 
-Extract the zip and run `FlatOut4SaveEditor.exe`.
+Run the setup exe. It extracts the app to `%LOCALAPPDATA%\FlatOut4SaveEditor\app` and launches it.
 
 ## Build
 
@@ -38,6 +39,12 @@ Publish a release build:
 
 ```powershell
 dotnet publish .\FlatOut4SaveEditor.csproj -c Release -p:Platform=x64 -r win-x64 --self-contained true
+```
+
+Build the one-file release asset:
+
+```powershell
+.\scripts\build_launcher.ps1 -Version 0.3.0
 ```
 
 ## Save Safety
