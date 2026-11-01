@@ -80,7 +80,7 @@ public sealed partial class MainPage : Page
                 Tag = info.Key,
                 Icon = new FontIcon { Glyph = info.Glyph }
             };
-            ToolTipService.SetToolTip(item, info.Subtitle);
+            Ui.SetToolTipText(item, info.Subtitle);
             navItems[info.Key] = item;
             Nav.MenuItems.Add(item);
         }
@@ -237,8 +237,8 @@ public sealed partial class MainPage : Page
         RevertButton.IsEnabled = Session?.HasChanges == true;
         UndoButton.IsEnabled = Session?.CanUndo == true;
         RedoButton.IsEnabled = Session?.CanRedo == true;
-        ToolTipService.SetToolTip(UndoButton, Session?.UndoLabel is { } undo ? $"Undo {undo} (Ctrl+Z)" : "Undo (Ctrl+Z)");
-        ToolTipService.SetToolTip(RedoButton, Session?.RedoLabel is { } redo ? $"Redo {redo} (Ctrl+Y)" : "Redo (Ctrl+Y)");
+        Ui.SetToolTipText(UndoButton, Session?.UndoLabel is { } undo ? $"Undo {undo} (Ctrl+Z)" : "Undo (Ctrl+Z)");
+        Ui.SetToolTipText(RedoButton, Session?.RedoLabel is { } redo ? $"Redo {redo} (Ctrl+Y)" : "Redo (Ctrl+Y)");
         SaveButton.IsEnabled = Session?.NeedsWrite == true;
 
         if (Session is null)
@@ -279,7 +279,7 @@ public sealed partial class MainPage : Page
             {
                 int issues = Catalog?.HealthIssues().Count ?? 0;
                 item.InfoBadge = issues == 0 ? null : HealthBadge(issues);
-                ToolTipService.SetToolTip(item, issues == 0 ? subtitle : $"{subtitle}\n{Ui.Count(issues, "value needs", "values need")} repair");
+                Ui.SetToolTipText(item, issues == 0 ? subtitle : $"{subtitle}\n{Ui.Count(issues, "value needs", "values need")} repair");
                 continue;
             }
 
@@ -287,7 +287,7 @@ public sealed partial class MainPage : Page
             if (count == 0)
             {
                 item.InfoBadge = null;
-                ToolTipService.SetToolTip(item, subtitle);
+                Ui.SetToolTipText(item, subtitle);
                 continue;
             }
 
@@ -299,7 +299,7 @@ public sealed partial class MainPage : Page
 
             SetBadgeCount(badge, count);
             item.InfoBadge = badge;
-            ToolTipService.SetToolTip(item, $"{subtitle}\n{Ui.Count(count, "unsaved change", "unsaved changes")}");
+            Ui.SetToolTipText(item, $"{subtitle}\n{Ui.Count(count, "unsaved change", "unsaved changes")}");
         }
     }
 

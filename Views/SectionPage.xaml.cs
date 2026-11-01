@@ -148,6 +148,15 @@ public sealed partial class SectionPage : Page
         }
     }
 
+    private void OnTableViewportSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Elements in these x:Bind templates get no DataContext; the table comes in through Tag.
+        if (sender is FrameworkElement { Tag: TableBlock table })
+        {
+            table.FitTo(e.NewSize.Width);
+        }
+    }
+
     private void OnRevertRowClicked(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: TableRowViewModel row })

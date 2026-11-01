@@ -46,6 +46,21 @@ public static class Ui
         }
     }
 
+    // Tooltips that change with the save: register one ToolTip per element and only change its
+    // text afterwards. Calling ToolTipService.SetToolTip again re-registers it each time, and that
+    // path intermittently fails with E_FAIL when many elements refresh at once.
+    public static void SetToolTipText(DependencyObject element, string text)
+    {
+        if (ToolTipService.GetToolTip(element) is ToolTip tip)
+        {
+            tip.Content = text;
+        }
+        else
+        {
+            ToolTipService.SetToolTip(element, new ToolTip { Content = text });
+        }
+    }
+
     public static string OnOff(bool value) => value ? "On" : "Off";
 
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;

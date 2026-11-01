@@ -379,15 +379,23 @@
                     Visibility="{x:Bind IsModified, Mode=OneWay}" />
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <StackPanel
-                        Width="{x:Bind TitleWidth}"
+                        Width="{x:Bind Table.TitleColumnWidth, Mode=OneWay}"
                         VerticalAlignment="Center"
                         Spacing="0">
-                        <TextBlock Text="{x:Bind Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Text="{x:Bind Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap">
+                            <ToolTipService.ToolTip>
+                                <ToolTip Content="{x:Bind Title, Mode=OneWay}" />
+                            </ToolTipService.ToolTip>
+                        </TextBlock>
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Text="{x:Bind Subtitle, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap"
                             Visibility="{x:Bind HasSubtitle, Mode=OneWay}" />
                     </StackPanel>
                     <ItemsRepeater ItemTemplate="{StaticResource TableCellTemplate}" ItemsSource="{x:Bind Cells}">
@@ -456,15 +464,17 @@
                     <ScrollViewer
                         HorizontalScrollBarVisibility="Auto"
                         HorizontalScrollMode="Auto"
+                        SizeChanged="OnTableViewportSizeChanged"
+                        Tag="{x:Bind}"
                         VerticalScrollBarVisibility="Disabled"
                         VerticalScrollMode="Disabled">
-                        <StackPanel MinWidth="{x:Bind TableWidth}">
+                        <StackPanel MinWidth="{x:Bind TableWidth, Mode=OneWay}">
                             <StackPanel
                                 Padding="16,10,16,8"
                                 Orientation="Horizontal"
                                 Spacing="12">
                                 <TextBlock
-                                    Width="{x:Bind TitleWidth}"
+                                    Width="{x:Bind TitleColumnWidth, Mode=OneWay}"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Text="{x:Bind TitleHeader}" />

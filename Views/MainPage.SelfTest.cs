@@ -191,41 +191,46 @@ public sealed partial class MainPage
 
         await shortcuts;
 
-        // The real Revert path: confirm in the dialog, which closes right before every value refreshes.
-        // Repeated because a refresh racing the closing dialog once failed inside ToolTipService.
+        // Revert right after moving between pages, half the time through its confirmation dialog.
+        // Re-registering every visible cell's tooltip on such a refresh used to fail with E_FAIL
+        // within a few attempts; cells now keep one ToolTip and only its text changes.
         SaveFieldViewModel credits = session.Field("m_oCareerData.m_iCredits");
         int revertFailures = 0;
-        for (int attempt = 0; attempt < 12; attempt++)
+        const int revertAttempts = 24;
+        for (int attempt = 0; attempt < revertAttempts; attempt++)
         {
-            Navigate(attempt % 2 == 0 ? "garage" : "controls");
+            bool viaDialog = attempt % 2 == 0;
+            Navigate(attempt % 4 < 2 ? "garage" : "controls");
             await Task.Delay(250);
             credits.WriteInteger(credits.ReadInteger() + 1);
-            Task revert = RevertAsync();
-            await Task.Delay(attempt % 3 * 150 + 200);
-            Button? confirm = VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot)
-                .Select(popup => popup.Child)
-                .OfType<ContentDialog>()
-                .SelectMany(FindAll<Button>)
-                .FirstOrDefault(button => button.Content as string == "Revert");
-            if (confirm is null)
-            {
-                Expect(false, "the Revert dialog shows a Revert button");
-                break;
-            }
-
-            new ButtonAutomationPeer(confirm).Invoke();
             try
             {
-                await revert;
+                if (viaDialog)
+                {
+                    Task revert = RevertAsync();
+                    if (await WaitForDialogButtonAsync("Revert") is not { } confirm)
+                    {
+                        Expect(false, "the Revert dialog shows a Revert button");
+                        break;
+                    }
+
+                    new ButtonAutomationPeer(confirm).Invoke();
+                    await revert;
+                }
+                else
+                {
+                    session.Revert();
+                }
             }
             catch (Exception ex)
             {
                 revertFailures++;
-                App.SnapshotLog($"SELFTEST revert attempt {attempt} threw {ex.GetType().Name} 0x{ex.HResult:X8}: {ex.StackTrace?.Split('\n').FirstOrDefault(line => line.Contains("FieldTemplates") || line.Contains("SectionPage"))?.Trim()}");
+                App.SnapshotLog($"SELFTEST revert attempt {attempt} ({(viaDialog ? "dialog" : "direct")}) threw {ex.GetType().Name} 0x{ex.HResult:X8}");
+                EndAfterFailure();
             }
         }
 
-        Expect(revertFailures == 0 && session.ModifiedCount == 0, $"Revert through its dialog works every time ({revertFailures} of 12 failed)");
+        Expect(revertFailures == 0 && session.ModifiedCount == 0, $"Revert straight after changing pages works every time ({revertFailures} of {revertAttempts} failed)");
 
         // Revert puts every editor back, and scrolling long tables afterwards writes nothing.
         session.Revert();
@@ -255,6 +260,33 @@ public sealed partial class MainPage
     private static int Listeners(ObservableObject source) =>
         (typeof(ObservableObject).GetField(nameof(ObservableObject.PropertyChanged), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(source) as Delegate)?
             .GetInvocationList().Length ?? 0;
+
+    // The open ContentDialog's button with this text, once the dialog has appeared (or null).
+    private async Task<Button?> WaitForDialogButtonAsync(string text)
+    {
+        for (int poll = 0; poll < 30; poll++)
+        {
+            await Task.Delay(100);
+            Button? button = VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot)
+                .Select(popup => popup.Child)
+                .OfType<ContentDialog>()
+                .SelectMany(FindAll<Button>)
+                .FirstOrDefault(candidate => candidate.Content as string == text);
+            if (button is not null)
+            {
+                return button;
+            }
+        }
+
+        return null;
+    }
+
+    // After a XAML call fails, WinUI later fail-fasts with a System Error box; end quietly first.
+    private static void EndAfterFailure()
+    {
+        App.SnapshotLog("SELFTEST ABORTED after a XAML failure");
+        System.Diagnostics.Process.GetCurrentProcess().Kill();
+    }
 
     private void Expect(bool condition, string what)
     {

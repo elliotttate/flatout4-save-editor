@@ -50,7 +50,7 @@ public sealed partial class OverviewPage : Page
 
         FileNameText.Text = overview.FileName;
         FilePathText.Text = PathDisplay.CompactFolder(overview.FilePath);
-        ToolTipService.SetToolTip(FilePathText, overview.FilePath);
+        Ui.SetToolTipText(FilePathText, overview.FilePath);
         SourceGlyph.Glyph = KindGlyph(overview.Session.Origin?.Kind ?? GuessKind(overview.FilePath));
         ChipsRepeater.ItemsSource = new[]
         {

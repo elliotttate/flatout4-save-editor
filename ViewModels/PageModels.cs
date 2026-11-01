@@ -135,7 +135,6 @@ public sealed class TableRowViewModel : ObservableObject
 
     public IReadOnlyList<TableCell> Cells { get; }
 
-    public double TitleWidth => Table.TitleWidth;
 
     public string Title
     {
@@ -209,7 +208,12 @@ public sealed class TableRowViewModel : ObservableObject
 
 public sealed class TableBlock : PageBlock
 {
+    private const double MinTitleWidth = 140;
+    private const double CellSpacing = 12;
+    private const double RowPadding = 40;
+    private const double RevertButtonWidth = 48;
     private readonly List<TableRowViewModel> rows = [];
+    private double titleColumnWidth;
     private bool hideEmpty = true;
     private string filter = string.Empty;
     private string summary = string.Empty;
@@ -219,6 +223,7 @@ public sealed class TableBlock : PageBlock
         Columns = columns;
         TitleWidth = titleWidth;
         TitleHeader = titleHeader;
+        titleColumnWidth = titleWidth;
     }
 
     public IReadOnlyList<TableColumn> Columns { get; }
@@ -276,7 +281,27 @@ public sealed class TableBlock : PageBlock
         private set => SetField(ref summary, value);
     }
 
-    public double TableWidth => TitleWidth + Columns.Sum(column => column.Width) + (Columns.Count * 12) + 40;
+    // The name column as laid out now: TitleWidth when the window has room, narrower (down to
+    // MinTitleWidth, names trimmed) so the value columns stay in view instead of scrolling away.
+    public double TitleColumnWidth
+    {
+        get => titleColumnWidth;
+        private set
+        {
+            if (SetField(ref titleColumnWidth, value))
+            {
+                OnPropertyChanged(nameof(TableWidth));
+            }
+        }
+    }
+
+    public double TableWidth => TitleColumnWidth + ValueColumnsWidth;
+
+    // Value columns, gaps, row padding and the revert button a changed row shows.
+    private double ValueColumnsWidth => Columns.Sum(column => column.Width) + (Columns.Count * CellSpacing) + RowPadding + RevertButtonWidth;
+
+    public void FitTo(double availableWidth) =>
+        TitleColumnWidth = Math.Clamp(availableWidth - ValueColumnsWidth, Math.Min(MinTitleWidth, TitleWidth), TitleWidth);
 
     public TableRowViewModel AddRow(
         string title,

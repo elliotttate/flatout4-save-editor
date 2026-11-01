@@ -139,50 +139,66 @@ AutomationProperties.Name="{x:Bind Label}"
         Text="{StaticResource CardTextTemplate}"
         Toggle="{StaticResource CardToggleTemplate}" />
 
-    <!--  Compact editors for table cells.  -->
+    <!--
+        Compact editors for table cells. Each cell keeps one ToolTip and binds only its Content:
+        binding ToolTipService.ToolTip itself re-registers the tooltip whenever the value refreshes,
+        and doing that for hundreds of cells at once (Revert) intermittently fails with E_FAIL.
+    -->
 
     <DataTemplate x:Key="CellToggleTemplate" x:DataType="m:SaveFieldViewModel">
         <CheckBox
-AutomationProperties.Name="{x:Bind Label}"
-                        MinWidth="0"
+            MinWidth="0"
             Padding="0"
             HorizontalAlignment="Left"
-            IsChecked="{x:Bind CheckedValue, Mode=TwoWay}"
-            ToolTipService.ToolTip="{x:Bind CellToolTip, Mode=OneWay}" />
+            AutomationProperties.Name="{x:Bind Label}"
+            IsChecked="{x:Bind CheckedValue, Mode=TwoWay}">
+            <ToolTipService.ToolTip>
+                <ToolTip Content="{x:Bind CellToolTip, Mode=OneWay}" />
+            </ToolTipService.ToolTip>
+        </CheckBox>
     </DataTemplate>
 
     <DataTemplate x:Key="CellChoiceTemplate" x:DataType="m:SaveFieldViewModel">
         <ComboBox
-AutomationProperties.Name="{x:Bind Label}"
-                        HorizontalAlignment="Stretch"
+            HorizontalAlignment="Stretch"
+            AutomationProperties.Name="{x:Bind Label}"
             DisplayMemberPath="Label"
-            ItemsSource="{x:Bind Options, Mode=OneWay}"
             DropDownClosed="OnComboDropDownClosed"
             DropDownOpened="OnComboDropDownOpened"
+            ItemsSource="{x:Bind Options, Mode=OneWay}"
             SelectedIndex="{x:Bind SelectedIndex, Mode=OneWay}"
-            SelectionChanged="OnChoiceSelectionChanged"
-            ToolTipService.ToolTip="{x:Bind CellToolTip, Mode=OneWay}" />
+            SelectionChanged="OnChoiceSelectionChanged">
+            <ToolTipService.ToolTip>
+                <ToolTip Content="{x:Bind CellToolTip, Mode=OneWay}" />
+            </ToolTipService.ToolTip>
+        </ComboBox>
     </DataTemplate>
 
     <DataTemplate x:Key="CellNumberTemplate" x:DataType="m:SaveFieldViewModel">
         <NumberBox
-AutomationProperties.Name="{x:Bind Label}"
-                        HorizontalAlignment="Stretch"
+            HorizontalAlignment="Stretch"
+            AutomationProperties.Name="{x:Bind Label}"
             DataContextChanged="OnNumberBoxDataContextChanged"
             SpinButtonPlacementMode="Hidden"
-            ToolTipService.ToolTip="{x:Bind CellToolTip, Mode=OneWay}"
             ValidationMode="InvalidInputOverwritten"
-            Value="{x:Bind NumberValue, Mode=TwoWay}" />
+            Value="{x:Bind NumberValue, Mode=TwoWay}">
+            <ToolTipService.ToolTip>
+                <ToolTip Content="{x:Bind CellToolTip, Mode=OneWay}" />
+            </ToolTipService.ToolTip>
+        </NumberBox>
     </DataTemplate>
 
     <DataTemplate x:Key="CellTextTemplate" x:DataType="m:SaveFieldViewModel">
         <TextBox
-AutomationProperties.Name="{x:Bind Label}"
-                        HorizontalAlignment="Stretch"
+            HorizontalAlignment="Stretch"
+            AutomationProperties.Name="{x:Bind Label}"
             FontFamily="{StaticResource ValueFontFamily}"
             IsSpellCheckEnabled="False"
-            Text="{x:Bind TextValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-            ToolTipService.ToolTip="{x:Bind CellToolTip, Mode=OneWay}" />
+            Text="{x:Bind TextValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+            <ToolTipService.ToolTip>
+                <ToolTip Content="{x:Bind CellToolTip, Mode=OneWay}" />
+            </ToolTipService.ToolTip>
+        </TextBox>
     </DataTemplate>
 
     <views:FieldEditorSelector
