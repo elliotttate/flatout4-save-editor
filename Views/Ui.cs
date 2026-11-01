@@ -69,6 +69,8 @@ public static class Ui
 
     public static Visibility VisibleIfAny(int count) => count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
+    public static Visibility CollapsedIfAny(int count) => count > 0 ? Visibility.Collapsed : Visibility.Visible;
+
     public static Visibility VisibleIfText(string? text) => string.IsNullOrWhiteSpace(text) ? Visibility.Collapsed : Visibility.Visible;
 
     public static double Opacity(bool enabled) => enabled ? 1.0 : 0.45;
@@ -76,20 +78,14 @@ public static class Ui
     public static Brush HighlightBrush(bool highlighted) =>
         highlighted ? Resource("AccentFillColorDefaultBrush", 0.18) : Transparent;
 
-    public static Brush AccentWhen(bool value) =>
-        value ? Resource("AccentFillColorDefaultBrush", 1) : Resource("TextFillColorTertiaryBrush", 1);
-
+    // Bronze, silver or gold; no medal leaves the template's theme-coloured circle showing.
     public static Brush MedalBrush(int medal) => medal switch
     {
         1 => new SolidColorBrush(Color.FromArgb(255, 0xB0, 0x6A, 0x3B)),
         2 => new SolidColorBrush(Color.FromArgb(255, 0x8E, 0x99, 0xA4)),
         3 => new SolidColorBrush(Color.FromArgb(255, 0xD9, 0xA4, 0x0E)),
-        _ => Resource("ControlFillColorTertiaryBrush", 1)
+        _ => Transparent
     };
-
-    public static Brush MedalForeground(int medal) => medal > 0
-        ? new SolidColorBrush(Colors.White)
-        : Resource("TextFillColorTertiaryBrush", 1);
 
     public static InfoBarSeverity Severity(string severity) => severity switch
     {

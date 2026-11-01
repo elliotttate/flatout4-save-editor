@@ -153,10 +153,17 @@
                     VerticalAlignment="Top"
                     Background="{x:Bind views:Ui.HighlightBrush(IsHighlighted), Mode=OneWay}"
                     CornerRadius="20">
+                    <!--  One icon per state, so both colours are ThemeResources that follow the window's theme.  -->
                     <FontIcon
                         FontSize="22"
-                        Foreground="{x:Bind views:Ui.AccentWhen(BoolValue), Mode=OneWay}"
-                        Glyph="&#xE735;" />
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Glyph="&#xE735;"
+                        Visibility="{x:Bind views:Ui.Collapsed(BoolValue), Mode=OneWay}" />
+                    <FontIcon
+                        FontSize="22"
+                        Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                        Glyph="&#xE735;"
+                        Visibility="{x:Bind BoolValue, Mode=OneWay}" />
                 </Grid>
                 <StackPanel
                     Grid.Column="1"
@@ -241,15 +248,24 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <!--  Theme colours come from ThemeResources so they follow the window's theme; the medal  -->
+                <!--  colour is drawn over them once the event has one.  -->
                 <Grid
                     Width="36"
                     Height="36"
-                    Background="{x:Bind views:Ui.MedalBrush(MedalIndex), Mode=OneWay}"
+                    Background="{ThemeResource ControlFillColorTertiaryBrush}"
                     CornerRadius="18">
+                    <Border Background="{x:Bind views:Ui.MedalBrush(MedalIndex), Mode=OneWay}" CornerRadius="18" />
                     <FontIcon
                         FontSize="16"
-                        Foreground="{x:Bind views:Ui.MedalForeground(MedalIndex), Mode=OneWay}"
-                        Glyph="{x:Bind KindGlyph}" />
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Glyph="{x:Bind KindGlyph}"
+                        Visibility="{x:Bind views:Ui.CollapsedIfAny(MedalIndex), Mode=OneWay}" />
+                    <FontIcon
+                        FontSize="16"
+                        Foreground="White"
+                        Glyph="{x:Bind KindGlyph}"
+                        Visibility="{x:Bind views:Ui.VisibleIfAny(MedalIndex), Mode=OneWay}" />
                 </Grid>
                 <StackPanel
                     Grid.Column="1"
