@@ -179,9 +179,9 @@
                             </StackPanel>
                         </Button>
                         <AppBarSeparator />
-                        <Button
+                        <SplitButton
                             x:Name="UndoButton"
-                            Padding="10,5,10,6"
+                            Padding="10,5,8,6"
                             AutomationProperties.Name="Undo"
                             Click="OnUndoClicked"
                             IsEnabled="False"
@@ -190,7 +190,13 @@
                                 Height="20"
                                 FontSize="14"
                                 Glyph="&#xE7A7;" />
-                        </Button>
+                            <SplitButton.Flyout>
+                                <MenuFlyout
+                                    x:Name="UndoHistoryFlyout"
+                                    Opening="OnUndoHistoryOpening"
+                                    Placement="BottomEdgeAlignedLeft" />
+                            </SplitButton.Flyout>
+                        </SplitButton>
                         <Button
                             x:Name="RedoButton"
                             Padding="10,5,10,6"

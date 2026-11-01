@@ -42,7 +42,7 @@ Ctrl+Tab and Ctrl+Shift+Tab step through the sections; More › Keyboard shortcu
 
 **Review changes** (or the unsaved-changes pill) lists every edit as old → new value, grouped by section; select one to jump to it or revert just that value. Changed cards and table rows also carry their own revert button.
 
-Every edit can be undone: **Undo** / **Redo** on the toolbar or Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). A slider drag is one step, and bulk actions (Unlock All, Gold all, Reset bindings, Repair, Revert) are one step each. Unlock All applies the same fields as the game's debug unlock path. Nothing is written until you save, Revert goes back to the file on disk, and closing with unsaved changes asks first.
+Every edit can be undone: **Undo** / **Redo** on the toolbar or Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). The arrow beside Undo lists recent changes and undoes back to any of them. A slider drag is one step, and bulk actions (Unlock All, Gold all, Reset bindings, Repair, Revert) are one step each. Unlock All applies the same fields as the game's debug unlock path. Nothing is written until you save, Revert goes back to the file on disk, and closing with unsaved changes asks first.
 
 ## Save safety
 

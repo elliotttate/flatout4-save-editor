@@ -179,6 +179,10 @@ public sealed class SaveSession : ObservableObject
 
     public string? RedoLabel => redoSteps.Count > 0 ? redoSteps[^1].Label : null;
 
+    // The most recent undo steps, newest first (the Undo button's history list).
+    public IReadOnlyList<string> UndoLabels(int max) =>
+        undoSteps.AsEnumerable().Reverse().Take(max).Select(step => step.Label).ToArray();
+
     // Both return the label of the step they replayed, or null when there was nothing to do.
     public string? Undo() => Replay(undoSteps, redoSteps, undo: true);
 

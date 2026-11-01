@@ -694,7 +694,45 @@ public sealed partial class MainPage : Page
 
     private void OnUnlockAllClicked(object sender, RoutedEventArgs e) => _ = UnlockAllAsync();
 
-    private void OnUndoClicked(object sender, RoutedEventArgs e) => Undo();
+    private void OnUndoClicked(SplitButton sender, SplitButtonClickEventArgs args) => Undo();
+
+    private const int UndoHistoryLength = 15;
+
+    // The arrow beside Undo lists recent changes, newest first; picking one undoes back to
+    // before that change.
+    private void OnUndoHistoryOpening(object? sender, object e)
+    {
+        UndoHistoryFlyout.Items.Clear();
+        IReadOnlyList<string> labels = Session?.UndoLabels(UndoHistoryLength) ?? [];
+        for (int i = 0; i < labels.Count; i++)
+        {
+            int steps = i + 1;
+            var item = new MenuFlyoutItem { Text = labels[i] };
+            item.Click += (_, _) => UndoSteps(steps);
+            UndoHistoryFlyout.Items.Add(item);
+        }
+
+        if (labels.Count == 0)
+        {
+            UndoHistoryFlyout.Items.Add(new MenuFlyoutItem { Text = "Nothing to undo", IsEnabled = false });
+        }
+    }
+
+    public void UndoSteps(int steps)
+    {
+        string? last = null;
+        int undone = 0;
+        while (undone < steps && Session?.Undo() is { } label)
+        {
+            last = label;
+            undone++;
+        }
+
+        if (undone > 0)
+        {
+            ShowStatus(undone == 1 ? $"Undid {last}." : $"Undid {undone} changes, back to before {last}.", InfoBarSeverity.Informational, autoHide: true);
+        }
+    }
 
     private void OnRedoClicked(object sender, RoutedEventArgs e) => Redo();
 

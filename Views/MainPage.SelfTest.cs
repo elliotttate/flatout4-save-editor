@@ -141,7 +141,7 @@ public sealed partial class MainPage
         // Undo / Redo on the toolbar step the history (the trophy switch was the last edit).
         bool trophyNow = trophy.BoolValue;
         Expect(UndoButton.IsEnabled && !RedoButton.IsEnabled, "Undo is enabled and Redo is not after edits");
-        new ButtonAutomationPeer(UndoButton).Invoke();
+        new SplitButtonAutomationPeer(UndoButton).Invoke();
         Expect(trophy.BoolValue != trophyNow && RedoButton.IsEnabled, "the Undo button puts the trophy back and enables Redo");
         if (await FindEditorAsync<ToggleSwitch>("trophies", trophy) is { } undoneSwitch)
         {
@@ -150,6 +150,20 @@ public sealed partial class MainPage
 
         new ButtonAutomationPeer(RedoButton).Invoke();
         Expect(trophy.BoolValue == trophyNow, "the Redo button applies it again");
+
+        // The arrow beside Undo lists recent changes newest first; picking the second undoes both.
+        SaveFieldViewModel invertY = session.Field("m_oGameOptions.m_oGameplayOptions.m_uCamYInversed");
+        SaveFieldViewModel wallet = session.Field("m_oCareerData.m_iCredits");
+        bool invertYBefore = invertY.BoolValue;
+        long walletBefore = wallet.ReadInteger();
+        invertY.BoolValue = !invertYBefore;
+        wallet.WriteInteger(walletBefore + 7);
+        OnUndoHistoryOpening(UndoHistoryFlyout, EventArgs.Empty);
+        string[] listed = UndoHistoryFlyout.Items.OfType<MenuFlyoutItem>().Select(item => item.Text).ToArray();
+        Expect(listed.Length >= 2 && listed[0] == wallet.Label && listed[1] == invertY.Label,
+            $"the Undo history lists recent changes newest first ({string.Join(", ", listed.Take(3))})");
+        UndoSteps(2);
+        Expect(invertY.BoolValue == invertYBefore && wallet.ReadInteger() == walletBefore, "picking the second entry undoes both changes");
 
         // Save health lists a damaged value; its Repair button fixes it and Undo brings it back.
         SaveFieldViewModel speedUnit = session.Field("m_oGameOptions.m_oGameplayOptions.m_uSpeedUnit");
@@ -165,7 +179,7 @@ public sealed partial class MainPage
         {
             new ButtonAutomationPeer(repairButton).Invoke();
             Expect(speedUnit.ReadInteger() == 0 && Catalog.HealthIssues().Count == 0, $"its Repair button sets MPH ({speedUnit.ReadInteger()})");
-            new ButtonAutomationPeer(UndoButton).Invoke();
+            new SplitButtonAutomationPeer(UndoButton).Invoke();
             Expect(speedUnit.ReadInteger() == 7, "Undo brings the damaged value back");
         }
 
