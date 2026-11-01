@@ -366,6 +366,29 @@ public sealed partial class MainPage
         }
 
         Expect(session.ModifiedCount == 0, $"scrolling every long page after Revert writes nothing ({session.ModifiedCount} changes)");
+
+        // Save through the toolbar: the file gets the new value, a backup appears beside it, and
+        // nothing is left unsaved. (The self-test always runs on a scratch copy.)
+        if (session.Document.Path is { } savePath && Path.GetDirectoryName(savePath) is { } saveFolder)
+        {
+            string backupPattern = Path.GetFileName(savePath) + ".bak-*";
+            string[] backupsBefore = Directory.GetFiles(saveFolder, backupPattern);
+            SaveFieldViewModel wallet2 = session.Field("m_oCareerData.m_iCredits");
+            long savedCredits = wallet2.ReadInteger() + 123;
+            wallet2.WriteInteger(savedCredits);
+            Expect(SaveButton.IsEnabled, "Save is enabled after an edit");
+            new ButtonAutomationPeer(SaveButton).Invoke();
+            await Task.Delay(1000);
+            int creditsOnDisk = BitConverter.ToInt32(File.ReadAllBytes(savePath), wallet2.Definition.Offset);
+            string[] newBackups = Directory.GetFiles(saveFolder, backupPattern).Except(backupsBefore).ToArray();
+            Expect(creditsOnDisk == savedCredits && newBackups.Length == 1 && !session.HasChanges && !SaveButton.IsEnabled,
+                $"Save writes the file ({creditsOnDisk} credits on disk), keeps one backup ({newBackups.Length}) and leaves nothing unsaved");
+            foreach (string backup in newBackups)
+            {
+                File.Delete(backup);
+            }
+        }
+
         App.SnapshotLog(selfTestFailures == 0 ? "SELFTEST ALL PASSED" : $"SELFTEST {selfTestFailures} FAILED");
     }
 
