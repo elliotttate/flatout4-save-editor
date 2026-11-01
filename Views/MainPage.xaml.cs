@@ -764,6 +764,47 @@ public sealed partial class MainPage : Page
 
     private void OnShortcutsClicked(object sender, RoutedEventArgs e) => _ = ShowShortcutsAsync();
 
+    private void OnAboutClicked(object sender, RoutedEventArgs e) => _ = ShowAboutAsync();
+
+    private const string ReleasesUrl = "https://github.com/elliotttate/flatout4-save-editor/releases";
+
+    // "Version 0.4.7 (abc1234)", or "Development build (abc1234)" for a local build.
+    public static string VersionText
+    {
+        get
+        {
+            string informational = typeof(App).Assembly
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .FirstOrDefault()?.InformationalVersion ?? "0.0.0-dev";
+            string[] parts = informational.Split('+', 2);
+            string commit = parts.Length > 1 ? $" ({parts[1][..Math.Min(7, parts[1].Length)]})" : string.Empty;
+            return parts[0].EndsWith("-dev", StringComparison.Ordinal) ? $"Development build{commit}" : $"Version {parts[0]}{commit}";
+        }
+    }
+
+    private async Task ShowAboutAsync()
+    {
+        var content = new StackPanel { Spacing = 12, MaxWidth = 440 };
+        content.Children.Add(new TextBlock { Text = VersionText, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        content.Children.Add(new TextBlock
+        {
+            Text = $"Reads FlatOut 4 and FlatOut VR profiles from V{FlatOut4SaveSchema.EarliestSupportedVersion} to V{FlatOut4SaveSchema.CurrentVersion}, converts the RC-only V{FlatOut4SaveSchema.RcTelemetryVersion}, and recovers cut-off, damaged or newer saves. Saves are written as V{FlatOut4SaveSchema.CurrentVersion}, the layout the live Steam build reads, except newer layouts, which keep their own.",
+            TextWrapping = TextWrapping.Wrap
+        });
+        content.Children.Add(new HyperlinkButton { Content = "Releases on GitHub", NavigateUri = new Uri(ReleasesUrl), Padding = new Thickness(0) });
+
+        var dialog = new ContentDialog
+        {
+            Title = "FlatOut 4 Save Editor",
+            Content = content,
+            CloseButtonText = "Close",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+        await dialog.ShowAsync();
+    }
+
     private void OnMoreOpening(object? sender, object e) => BackupMenuItem.IsChecked = BackupToggle.IsOn;
 
     private void OnBackupMenuClicked(object sender, RoutedEventArgs e) => BackupToggle.IsOn = BackupMenuItem.IsChecked;

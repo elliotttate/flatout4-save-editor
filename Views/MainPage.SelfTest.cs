@@ -260,6 +260,28 @@ public sealed partial class MainPage
         Expect(next == "controls" && back == "options" && wrapped == EditorCatalog.AllFieldsKey,
             $"section keys step Options -> {next} -> {back}, and back from Overview wraps to {wrapped}");
 
+        // More > About shows the build's version.
+        Task about = ShowAboutAsync();
+        await Task.Delay(600);
+        ContentDialog? aboutDialog = VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot)
+            .Select(popup => popup.Child)
+            .OfType<ContentDialog>()
+            .FirstOrDefault();
+        string[] aboutText = aboutDialog is null ? [] : FindAll<TextBlock>(aboutDialog).Select(block => block.Text).ToArray();
+        Expect(aboutText.Contains(VersionText) && (VersionText.StartsWith("Version ", StringComparison.Ordinal) || VersionText.StartsWith("Development build", StringComparison.Ordinal)),
+            $"the About dialog shows the build ({VersionText})");
+        if (aboutDialog is not null)
+        {
+            if (App.SnapshotDirectory is { } aboutDirectory)
+            {
+                await CaptureAsync(Path.Combine(aboutDirectory, "zz-about.png"), aboutDialog);
+            }
+
+            aboutDialog.Hide();
+        }
+
+        await about;
+
         // A remembered window spot is only used while its title bar is on a display.
         var primary = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
         bool centreOk = WindowPlacement.IsOnADisplay(new Windows.Graphics.RectInt32(primary.X + 100, primary.Y + 100, 1200, 800));

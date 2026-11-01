@@ -38,7 +38,17 @@ foreach ($candidate in $publishDirCandidates) {
     }
 }
 
-& dotnet publish $appProject -c Release -p:Platform=x64 -r win-x64 --self-contained true -v:minimal | Out-Host
+# The app carries the release version too, so More > About can show it.
+& dotnet publish $appProject `
+    -c Release `
+    -p:Platform=x64 `
+    -r win-x64 `
+    --self-contained true `
+    -p:Version=$versionText `
+    -p:AssemblyVersion=$assemblyVersion `
+    -p:FileVersion=$assemblyVersion `
+    -p:InformationalVersion=$versionText `
+    -v:minimal | Out-Host
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed: $LASTEXITCODE"
 }

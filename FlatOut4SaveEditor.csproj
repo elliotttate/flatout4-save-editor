@@ -13,6 +13,8 @@
         <!-- Project Options -->
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
+        <!-- Local builds say so in More > About; scripts/build_launcher.ps1 stamps the release version. -->
+        <Version>0.0.0-dev</Version>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>FlatOut4SaveEditor</RootNamespace>
 
