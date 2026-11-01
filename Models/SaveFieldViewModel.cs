@@ -586,14 +586,20 @@ public sealed class SaveFieldViewModel : ObservableObject
     private IReadOnlyList<FieldOption> BuildOptions()
     {
         var list = new List<FieldOption>();
-        if (Definition.ValueLabels is not null)
+        if (Definition.ValueLabels is not null && Definition.KeepLabelOrder)
         {
-            // Sentinels such as "Default"/"Cleared" (0xFFFFFFFF/0xFFFFFFFE) lead the list.
+            list.AddRange(Definition.ValueLabels.Select(pair => new FieldOption(pair.Key, pair.Value)));
+        }
+        else if (Definition.ValueLabels is not null)
+        {
+            // Sentinels such as "Default"/"Cleared" (0xFFFFFFFF/0xFFFFFFFE) lead the list. Lists sorted
+            // by name also keep 0 on top: WithNone lists use it for "None" or "Default paint".
             IEnumerable<KeyValuePair<long, string>> ordered = Definition.ValueLabels.OrderBy(pair => pair.Key switch
             {
                 0xFFFFFFFFL => 0,
                 0xFFFFFFFEL => 1,
-                _ => 2
+                0L when Definition.SortOptionsByLabel => 2,
+                _ => 3
             });
             ordered = Definition.SortOptionsByLabel
                 ? ((IOrderedEnumerable<KeyValuePair<long, string>>)ordered).ThenBy(pair => pair.Value, StringComparer.CurrentCultureIgnoreCase)
@@ -604,7 +610,7 @@ public sealed class SaveFieldViewModel : ObservableObject
         long current = ReadInteger();
         if (!list.Any(option => option.Value == current))
         {
-            list.Add(new FieldOption(current, $"Other ({current})"));
+            list.Add(new FieldOption(current, Definition.Format == SaveFieldFormat.Hex ? $"Other (0x{(uint)current:X8})" : $"Other ({current})"));
         }
 
         return list;

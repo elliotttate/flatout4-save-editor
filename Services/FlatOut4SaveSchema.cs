@@ -373,7 +373,7 @@ public sealed class FlatOut4SaveSchema
         b.AddInt32("Career", "m_oCareerData.m_iCredits");
         b.Annotate(label: "Credits", description: "Career wallet.");
         b.AddUInt32("Career", "m_oCareerData.m_oCurrentEvent.m_iCurrentEventIndex", FlatOut4GameData.CareerEventLabels);
-        b.Annotate(label: "Event in progress", description: "Hashed event index of the cup being played; 0 when no cup is in progress.", format: SaveFieldFormat.Hex);
+        b.Annotate(label: "Event in progress", description: "The career event being played, stored as its hashed index. None when no cup is in progress.", format: SaveFieldFormat.Hex, preferChoice: true, keepLabelOrder: true);
         b.AddUInt32("Career", "m_oCareerData.m_oCurrentEvent.m_iCurrentRound");
         b.Annotate(label: "Current round");
 
@@ -563,7 +563,8 @@ public sealed class FlatOut4SaveSchema
             SaveFieldFormat? format = null,
             IReadOnlyDictionary<long, string>? labels = null,
             bool? preferChoice = null,
-            bool? sortByLabel = null)
+            bool? sortByLabel = null,
+            bool? keepLabelOrder = null)
         {
             SaveFieldDefinition last = fields[^1];
             fields[^1] = last with
@@ -576,7 +577,8 @@ public sealed class FlatOut4SaveSchema
                 Format = format ?? last.Format,
                 ValueLabels = labels ?? last.ValueLabels,
                 PreferChoice = preferChoice ?? last.PreferChoice,
-                SortOptionsByLabel = sortByLabel ?? last.SortOptionsByLabel
+                SortOptionsByLabel = sortByLabel ?? last.SortOptionsByLabel,
+                KeepLabelOrder = keepLabelOrder ?? last.KeepLabelOrder
             };
         }
 

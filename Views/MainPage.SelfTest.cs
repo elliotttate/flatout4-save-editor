@@ -69,6 +69,15 @@ public sealed partial class MainPage
         Expect(versionHit is { Page.Key: EditorCatalog.AllFieldsKey, Target: SaveFieldViewModel versionField } && allFilter == versionField.RawName && allCount.StartsWith("1 of", StringComparison.Ordinal),
             $"search finds the save version and opens All fields on it ({versionHit?.Title} -> filter \"{allFilter}\", {allCount})");
 
+        // Hashed ids get pickers in a readable order: the cup in progress in the game's event order,
+        // paint sorted by name with "Default paint" still on top.
+        SaveFieldViewModel? eventInProgress = Catalog.Page("career")!.Blocks.OfType<FieldGroupBlock>()
+            .SelectMany(group => group.Fields).FirstOrDefault(field => field.RawName.EndsWith("m_iCurrentEventIndex", StringComparison.Ordinal));
+        SaveFieldViewModel? paint = Catalog.Page("garage")!.Blocks.OfType<TableBlock>().First(table => table.Title == "Selected paint").AllRows[0].Cells[0].Field;
+        Expect(eventInProgress is { Editor: FieldEditorKind.Choice } && eventInProgress.Options[0].Label == "None" &&
+               eventInProgress.Options[1].Label.StartsWith("Derby", StringComparison.Ordinal) && paint?.Options[0].Label == "Default paint",
+            $"id pickers read in order (event: {eventInProgress?.Editor}, {string.Join(", ", eventInProgress?.Options.Take(2).Select(option => option.Label) ?? [])}; paint: {paint?.Options[0].Label}, {paint?.Options[1].Label})");
+
         // Section tooltips name the section when the pane shows icons only.
         string garageTip = ToolTipService.GetToolTip(navItems["garage"]) is ToolTip { Content: string tipText } ? tipText : string.Empty;
         bool compactPane = Nav.DisplayMode != NavigationViewDisplayMode.Expanded;

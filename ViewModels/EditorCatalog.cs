@@ -555,7 +555,7 @@ public sealed class EditorCatalog
 
         blocks.Add(Group(
             "Cup in progress",
-            "The cup the player is part-way through. 0 means no cup is in progress.",
+            "The cup the player is part-way through, and which round they are on.",
             "m_oCareerData.m_oCurrentEvent.m_iCurrentEventIndex",
             "m_oCareerData.m_oCurrentEvent.m_iCurrentRound"));
 

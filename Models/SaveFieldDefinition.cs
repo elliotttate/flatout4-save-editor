@@ -36,6 +36,10 @@ public sealed record SaveFieldDefinition(
 
     public bool SortOptionsByLabel { get; init; }
 
+    // Offer the labels in the order they were built (the game's own order) rather than by value,
+    // for hashed ids whose numeric order means nothing.
+    public bool KeepLabelOrder { get; init; }
+
     public string OffsetHex => $"0x{Offset:X6}";
 
     public string DisplayName => SaveFieldNameFormatter.Format(Name);
