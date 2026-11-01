@@ -11,6 +11,9 @@ public sealed partial class ChangesPage : Page
     private SaveSession? session;
     private bool refreshQueued;
 
+    // Sections the user expanded stay expanded while the list rebuilds (reverting one entry).
+    private readonly HashSet<string> expandedGroups = [];
+
     public ChangesPage()
     {
         InitializeComponent();
@@ -59,6 +62,11 @@ public sealed partial class ChangesPage : Page
     private void Render()
     {
         IReadOnlyList<ChangeGroup> groups = shell?.Catalog?.ChangeGroups() ?? [];
+        foreach (ChangeGroup group in groups)
+        {
+            group.IsExpanded = expandedGroups.Contains(group.Title);
+        }
+
         int changes = groups.Sum(group => group.Entries.Count);
         GroupsRepeater.ItemsSource = groups;
         EmptyState.Visibility = changes == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -99,4 +107,20 @@ public sealed partial class ChangesPage : Page
     }
 
     private void OnRevertAllClicked(object sender, RoutedEventArgs e) => _ = shell?.RevertAsync();
+
+    private void OnToggleGroupClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: ChangeGroup group })
+        {
+            group.IsExpanded = !group.IsExpanded;
+            if (group.IsExpanded)
+            {
+                expandedGroups.Add(group.Title);
+            }
+            else
+            {
+                expandedGroups.Remove(group.Title);
+            }
+        }
+    }
 }

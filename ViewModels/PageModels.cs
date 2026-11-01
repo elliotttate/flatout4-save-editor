@@ -539,8 +539,14 @@ public sealed class HealthGroup(string title, IReadOnlyList<HealthIssueViewModel
     public bool HasMore => Issues.Count > ShownLimit;
 }
 
-public sealed class ChangeGroup(string title, string glyph, IReadOnlyList<ChangeEntry> entries)
+// One section's unsaved changes. A bulk action can leave hundreds, so long groups show their
+// first few until expanded.
+public sealed class ChangeGroup(string title, string glyph, IReadOnlyList<ChangeEntry> entries) : ObservableObject
 {
+    public const int CollapsedCount = 10;
+
+    private bool isExpanded;
+
     public string Title { get; } = title;
 
     public string Glyph { get; } = glyph;
@@ -548,6 +554,25 @@ public sealed class ChangeGroup(string title, string glyph, IReadOnlyList<Change
     public IReadOnlyList<ChangeEntry> Entries { get; } = entries;
 
     public string CountText => Entries.Count == 1 ? "1 change" : $"{Entries.Count:N0} changes";
+
+    public bool HasMore => Entries.Count > CollapsedCount;
+
+    public bool IsExpanded
+    {
+        get => isExpanded;
+        set
+        {
+            if (SetField(ref isExpanded, value))
+            {
+                OnPropertyChanged(nameof(VisibleEntries));
+                OnPropertyChanged(nameof(ToggleText));
+            }
+        }
+    }
+
+    public IReadOnlyList<ChangeEntry> VisibleEntries => IsExpanded || !HasMore ? Entries : Entries.Take(CollapsedCount).ToArray();
+
+    public string ToggleText => IsExpanded ? "Show fewer" : $"Show all {Entries.Count:N0}";
 }
 
 // One pill in a page's "jump to" strip.

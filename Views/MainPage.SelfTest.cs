@@ -172,6 +172,27 @@ public sealed partial class MainPage
                 $"the Gold every career event quick action golds all {goldAfter} events and one Undo takes them back ({goldUndone})");
         }
 
+        // After a bulk edit, Review changes shows each long section's first entries until expanded.
+        session.ApplyExternal(() => Services.FlatOut4SaveUnlocker.ApplyDebugUnlockAll(session.Document, session.Schema), "Unlock all");
+        Navigate(EditorCatalog.ChangesKey);
+        await Task.Delay(800);
+        HyperlinkButton? showAll = ContentFrame.Content is ChangesPage changesPage
+            ? FindAll<HyperlinkButton>(changesPage).FirstOrDefault(button => button.Tag is ChangeGroup { Title: "Garage" })
+            : null;
+        if (showAll?.Tag is ChangeGroup garageChanges)
+        {
+            int collapsed = garageChanges.VisibleEntries.Count;
+            new HyperlinkButtonAutomationPeer(showAll).Invoke();
+            Expect(collapsed == ChangeGroup.CollapsedCount && garageChanges.VisibleEntries.Count == garageChanges.Entries.Count,
+                $"a long section shows {collapsed} of {garageChanges.Entries.Count} changes until Show all ({garageChanges.VisibleEntries.Count})");
+        }
+        else
+        {
+            Expect(false, "Review changes offers Show all for the Garage section");
+        }
+
+        new SplitButtonAutomationPeer(UndoButton).Invoke();
+
         // The arrow beside Undo lists recent changes newest first; picking the second undoes both.
         SaveFieldViewModel invertY = session.Field("m_oGameOptions.m_oGameplayOptions.m_uCamYInversed");
         SaveFieldViewModel wallet = session.Field("m_oCareerData.m_iCredits");

@@ -91,7 +91,15 @@
                         Text="{x:Bind CountText}" />
                 </StackPanel>
                 <Border Style="{StaticResource CardBorderStyle}">
-                    <ItemsRepeater ItemTemplate="{StaticResource ChangeEntryTemplate}" ItemsSource="{x:Bind Entries}" />
+                    <StackPanel>
+                        <ItemsRepeater ItemTemplate="{StaticResource ChangeEntryTemplate}" ItemsSource="{x:Bind VisibleEntries, Mode=OneWay}" />
+                        <HyperlinkButton
+                            Margin="8,6,8,8"
+                            Click="OnToggleGroupClicked"
+                            Content="{x:Bind ToggleText, Mode=OneWay}"
+                            Tag="{x:Bind}"
+                            Visibility="{x:Bind HasMore}" />
+                    </StackPanel>
                 </Border>
             </StackPanel>
         </DataTemplate>
