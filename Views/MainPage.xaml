@@ -131,14 +131,14 @@
             </NavigationView.AutoSuggestBox>
 
             <NavigationView.PaneFooter>
-                <StackPanel
-                    x:Name="BackupFooter"
-                    Padding="16,8,16,12"
-                    Spacing="4">
+                <!--  One row, so the section list above keeps its room on shorter windows.  -->
+                <StackPanel x:Name="BackupFooter" Padding="16,4,16,8">
                     <ToggleSwitch
                         x:Name="BackupToggle"
-                        Header="Back up before saving"
+                        AutomationProperties.Name="Back up before saving"
                         IsOn="True"
+                        OffContent="Back up before saving"
+                        OnContent="Back up before saving"
                         ToolTipService.ToolTip="Copies the file to Save.bak-&lt;date&gt; before writing" />
                 </StackPanel>
             </NavigationView.PaneFooter>

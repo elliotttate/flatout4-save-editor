@@ -98,6 +98,9 @@ public sealed partial class MainPage : Page
         if (navItems.TryGetValue(key, out NavigationViewItem? item) && !ReferenceEquals(Nav.SelectedItem, item))
         {
             Nav.SelectedItem = item;
+
+            // Search, Ctrl+Tab and links can open a section whose item is scrolled out of a short pane.
+            item.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
         }
 
         if (target is not null && ContentFrame.Content is SectionPage current && current.ViewModel?.Key == key)

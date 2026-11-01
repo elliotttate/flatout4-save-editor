@@ -1,4 +1,4 @@
-using FlatOut4SaveEditor.Models;
+﻿using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.ViewModels;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -45,6 +45,15 @@ public sealed partial class MainPage
         App.SnapshotLog("SELFTEST section open times: " + string.Join(", ", openTimes.Select(time => $"{time.Key} {time.Ms} ms")));
         (string slowest, long slowestMs) = openTimes.MaxBy(time => time.Ms);
         Expect(slowestMs < 1500, $"every section opens within 1.5 s (slowest: {slowest} {slowestMs} ms)");
+
+        // The section just opened (the last one in the list) must show as selected in the pane,
+        // not sit behind the backup footer.
+        if (Nav.IsPaneOpen && navItems.TryGetValue(EditorCatalog.Sections[^1].Key, out NavigationViewItem? lastItem))
+        {
+            double itemBottom = lastItem.TransformToVisual(Nav).TransformPoint(new Windows.Foundation.Point(0, lastItem.ActualHeight)).Y;
+            double footerTop = BackupFooter.TransformToVisual(Nav).TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+            Expect(itemBottom <= footerTop + 1, $"the open section's pane item is in view (bottom {itemBottom:0}, footer top {footerTop:0})");
+        }
 
         // A page that has been left must stop listening to the save's values; otherwise every later
         // refresh keeps pushing updates into its detached cells until garbage collection runs.
