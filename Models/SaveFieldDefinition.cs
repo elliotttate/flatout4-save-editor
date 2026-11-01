@@ -49,7 +49,7 @@ public sealed record SaveFieldDefinition(
         SaveFieldKind.Int32 => "int32",
         SaveFieldKind.UInt32 => "uint32",
         SaveFieldKind.Float32 => "float",
-        SaveFieldKind.Footer => "footer",
+        SaveFieldKind.Footer => "marker",
         SaveFieldKind.Bit => "bit",
         SaveFieldKind.ExtensionOnOff => "ext on/off",
         _ => Kind.ToString()

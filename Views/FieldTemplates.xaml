@@ -125,6 +125,17 @@ AutomationProperties.Name="{x:Bind Label}"
             Text="{x:Bind DisplayValue, Mode=OneWay}" />
     </DataTemplate>
 
+    <!--  Cells line values up on the left like the editors around them; cards keep them on the right.  -->
+    <DataTemplate x:Key="CellReadOnlyTemplate" x:DataType="m:SaveFieldViewModel">
+        <TextBlock
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            FontFamily="{StaticResource ValueFontFamily}"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            IsTextSelectionEnabled="True"
+            Text="{x:Bind DisplayValue, Mode=OneWay}" />
+    </DataTemplate>
+
     <DataTemplate x:Key="EmptyCellTemplate">
         <Grid />
     </DataTemplate>
@@ -207,7 +218,7 @@ AutomationProperties.Name="{x:Bind Label}"
         Empty="{StaticResource EmptyCellTemplate}"
         Number="{StaticResource CellNumberTemplate}"
         Range="{StaticResource CellNumberTemplate}"
-        ReadOnly="{StaticResource ReadOnlyTemplate}"
+        ReadOnly="{StaticResource CellReadOnlyTemplate}"
         Text="{StaticResource CellTextTemplate}"
         Toggle="{StaticResource CellToggleTemplate}" />
 

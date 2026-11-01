@@ -246,6 +246,13 @@ public sealed class TableBlock : PageBlock
 
     public bool HasNoVisibleRows => VisibleRows.Count == 0;
 
+    // Why the table is empty, and what brings rows back.
+    public string EmptyText => !string.IsNullOrWhiteSpace(Filter)
+        ? $"No rows match \"{Filter.Trim()}\"."
+        : CanHideEmpty && HideEmpty
+            ? $"Every row is empty, so all are hidden. Untick \"{HideEmptyLabel}\" to fill them in."
+            : "Nothing to show.";
+
     public string HideEmptyLabel { get; init; } = "Hide empty slots";
 
     public bool ShowFilter => rows.Count > 12;
@@ -341,6 +348,7 @@ public sealed class TableBlock : PageBlock
         }
 
         OnPropertyChanged(nameof(HasNoVisibleRows));
+        OnPropertyChanged(nameof(EmptyText));
         int hidden = rows.Count - list.Length;
         Summary = hidden == 0
             ? $"{rows.Count:N0} rows"

@@ -491,7 +491,7 @@
                             <TextBlock
                                 Margin="16,14"
                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                Text="Nothing to show. Clear the filter or untick the hide option."
+                                Text="{x:Bind EmptyText, Mode=OneWay}"
                                 Visibility="{x:Bind HasNoVisibleRows, Mode=OneWay}" />
                         </StackPanel>
                     </ScrollViewer>
