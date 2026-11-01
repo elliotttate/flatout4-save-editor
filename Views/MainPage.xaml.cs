@@ -272,12 +272,13 @@ public sealed partial class MainPage : Page
     {
         foreach ((string key, NavigationViewItem item) in navItems)
         {
+            string subtitle = NavToolTip(key);
             if (key is EditorCatalog.OverviewKey or EditorCatalog.AllFieldsKey)
             {
+                Ui.SetToolTipText(item, subtitle);
                 continue;
             }
 
-            string subtitle = EditorCatalog.Sections.First(section => section.Key == key).Subtitle;
             if (key == EditorCatalog.HealthKey)
             {
                 int issues = Catalog?.HealthIssues().Count ?? 0;
@@ -304,6 +305,13 @@ public sealed partial class MainPage : Page
             item.InfoBadge = badge;
             Ui.SetToolTipText(item, $"{subtitle}\n{Ui.Count(count, "unsaved change", "unsaved changes")}");
         }
+    }
+
+    // What a section is for. The compact pane shows icons only, so there the tooltip leads with its name.
+    private string NavToolTip(string key)
+    {
+        EditorCatalog.SectionInfo info = EditorCatalog.Sections.First(section => section.Key == key);
+        return Nav.DisplayMode == NavigationViewDisplayMode.Expanded ? info.Subtitle : $"{info.Title}\n{info.Subtitle}";
     }
 
     // In the compact pane a count past 99 would cover the icon; a dot plus the tooltip says enough there.

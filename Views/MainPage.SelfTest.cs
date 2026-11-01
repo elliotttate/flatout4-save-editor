@@ -55,6 +55,12 @@ public sealed partial class MainPage
             Expect(itemBottom <= footerTop + 1, $"the open section's pane item is in view (bottom {itemBottom:0}, footer top {footerTop:0})");
         }
 
+        // Section tooltips name the section when the pane shows icons only.
+        string garageTip = ToolTipService.GetToolTip(navItems["garage"]) is ToolTip { Content: string tipText } ? tipText : string.Empty;
+        bool compactPane = Nav.DisplayMode != NavigationViewDisplayMode.Expanded;
+        Expect(compactPane ? garageTip.StartsWith("Garage\n", StringComparison.Ordinal) : !garageTip.StartsWith("Garage", StringComparison.Ordinal) && garageTip.Length > 0,
+            $"the Garage tooltip suits the {(compactPane ? "compact" : "expanded")} pane ({garageTip.Replace('\n', '/')})");
+
         // A table whose rows are all hidden as empty offers a button that shows them, and its
         // filter box only appears once there are enough rows to need one.
         TableBlock trackRecords = Catalog.Page("records")!.Blocks.OfType<TableBlock>().First();
