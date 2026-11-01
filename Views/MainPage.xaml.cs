@@ -482,7 +482,8 @@ public sealed partial class MainPage : Page
             PrimaryButtonText = "Revert",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close,
-            XamlRoot = XamlRoot
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme
         };
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
@@ -540,7 +541,8 @@ public sealed partial class MainPage : Page
             SecondaryButtonText = "Don't save",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme
         };
 
         return await dialog.ShowAsync() switch
@@ -588,9 +590,7 @@ public sealed partial class MainPage : Page
                 content.Children.Add(new TextBlock
                 {
                     Text = candidate.Path,
-                    Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
-                    Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    Style = (Style)Application.Current.Resources["TertiaryCaptionStyle"]
                 });
                 list.Items.Add(new ListViewItem { Content = content, Tag = candidate });
             }
@@ -604,7 +604,8 @@ public sealed partial class MainPage : Page
             PrimaryButtonText = "Open",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme
         };
 
         return await dialog.ShowAsync() == ContentDialogResult.Primary && list.SelectedItem is ListViewItem { Tag: FlatOut4SaveCandidate chosen }
@@ -658,7 +659,8 @@ public sealed partial class MainPage : Page
                 Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true }
             },
             CloseButtonText = "OK",
-            XamlRoot = XamlRoot
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme
         };
 
         _ = await dialog.ShowAsync();
@@ -812,7 +814,8 @@ public sealed partial class MainPage : Page
             Content = content,
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Close,
-            XamlRoot = XamlRoot
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme
         };
         await dialog.ShowAsync();
     }
@@ -881,12 +884,7 @@ public sealed partial class MainPage : Page
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var keys = new Border
             {
-                Padding = new Thickness(8, 2, 8, 3),
-                CornerRadius = new CornerRadius(4),
-                BorderThickness = new Thickness(1),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
+                Style = (Style)Application.Current.Resources["ShortcutKeyStyle"],
                 Child = new TextBlock { Text = Shortcuts[i].Keys, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] }
             };
             var action = new TextBlock { Text = Shortcuts[i].Action, VerticalAlignment = VerticalAlignment.Center };
@@ -903,7 +901,8 @@ public sealed partial class MainPage : Page
             Content = grid,
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Close,
-            XamlRoot = XamlRoot
+            XamlRoot = XamlRoot,
+            RequestedTheme = ActualTheme
         };
         await dialog.ShowAsync();
     }

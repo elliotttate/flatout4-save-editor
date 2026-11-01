@@ -239,4 +239,20 @@ AutomationProperties.Name="{x:Bind Label}"
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
+
+    <!--  For dialogs built in code: ThemeResource setters follow the dialog's own theme, which brushes  -->
+    <!--  looked up in code do not.  -->
+    <Style x:Key="TertiaryCaptionStyle" BasedOn="{StaticResource CaptionTextBlockStyle}" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style x:Key="ShortcutKeyStyle" TargetType="Border">
+        <Setter Property="Padding" Value="8,2,8,3" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+    </Style>
 </ResourceDictionary>

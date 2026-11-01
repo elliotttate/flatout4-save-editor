@@ -1,4 +1,4 @@
-﻿using FlatOut4SaveEditor.Models;
+using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.ViewModels;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
