@@ -215,7 +215,11 @@ public sealed class TableBlock : PageBlock
     private const double CellSpacing = 12;
     private const double RowPadding = 40;
     private const double RevertButtonWidth = 48;
+
+    // Fewer rows than this fit on screen at once, so a filter box would only add clutter.
+    private const int FilterThreshold = 12;
     private readonly List<TableRowViewModel> rows = [];
+    private int candidateCount;
     private double titleColumnWidth;
     private bool hideEmpty = true;
     private string filter = string.Empty;
@@ -227,6 +231,17 @@ public sealed class TableBlock : PageBlock
         TitleWidth = titleWidth;
         TitleHeader = titleHeader;
         titleColumnWidth = titleWidth;
+        EmptyActionCommand = new RelayCommand(() =>
+        {
+            if (!string.IsNullOrWhiteSpace(Filter))
+            {
+                Filter = string.Empty;
+            }
+            else
+            {
+                HideEmpty = false;
+            }
+        });
     }
 
     public IReadOnlyList<TableColumn> Columns { get; }
@@ -249,16 +264,24 @@ public sealed class TableBlock : PageBlock
 
     public bool HasNoVisibleRows => VisibleRows.Count == 0;
 
-    // Why the table is empty, and what brings rows back.
+    // Why the table is empty, and the button that brings rows back.
     public string EmptyText => !string.IsNullOrWhiteSpace(Filter)
         ? $"No rows match \"{Filter.Trim()}\"."
         : CanHideEmpty && HideEmpty
-            ? $"Every row is empty, so all are hidden. Untick \"{HideEmptyLabel}\" to fill them in."
+            ? $"All {rows.Count:N0} rows are empty, so they are hidden."
             : "Nothing to show.";
+
+    public bool HasEmptyAction => !string.IsNullOrWhiteSpace(Filter) || (CanHideEmpty && HideEmpty && rows.Count > 0);
+
+    public string EmptyActionText => !string.IsNullOrWhiteSpace(Filter) ? "Clear filter" : $"Show all {rows.Count:N0} rows";
+
+    public ICommand EmptyActionCommand { get; }
 
     public string HideEmptyLabel { get; init; } = "Hide empty slots";
 
-    public bool ShowFilter => rows.Count > 12;
+    // Shown once the rows left after hiding empty ones are too many to scan, and kept while it
+    // holds text so it never vanishes under the cursor.
+    public bool ShowFilter => candidateCount > FilterThreshold || !string.IsNullOrWhiteSpace(filter);
 
     public bool HideEmpty
     {
@@ -335,6 +358,8 @@ public sealed class TableBlock : PageBlock
             visible = visible.Where(row => !row.IsEmpty || row.IsModified || row.IsHighlighted);
         }
 
+        TableRowViewModel[] candidates = visible.ToArray();
+        visible = candidates;
         if (query.Length > 0)
         {
             visible = visible.Where(row => row.Matches(query));
@@ -350,8 +375,12 @@ public sealed class TableBlock : PageBlock
             }
         }
 
+        candidateCount = candidates.Length;
+        OnPropertyChanged(nameof(ShowFilter));
         OnPropertyChanged(nameof(HasNoVisibleRows));
         OnPropertyChanged(nameof(EmptyText));
+        OnPropertyChanged(nameof(HasEmptyAction));
+        OnPropertyChanged(nameof(EmptyActionText));
         int hidden = rows.Count - list.Length;
         Summary = hidden == 0
             ? $"{rows.Count:N0} rows"

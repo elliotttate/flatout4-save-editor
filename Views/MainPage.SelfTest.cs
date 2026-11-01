@@ -55,6 +55,28 @@ public sealed partial class MainPage
             Expect(itemBottom <= footerTop + 1, $"the open section's pane item is in view (bottom {itemBottom:0}, footer top {footerTop:0})");
         }
 
+        // A table whose rows are all hidden as empty offers a button that shows them, and its
+        // filter box only appears once there are enough rows to need one.
+        TableBlock trackRecords = Catalog.Page("records")!.Blocks.OfType<TableBlock>().First();
+        if (trackRecords.HasNoVisibleRows && trackRecords.HideEmpty)
+        {
+            Navigate("records");
+            await Task.Delay(600);
+            HyperlinkButton? showAllRows = ContentFrame.Content is SectionPage recordsPage
+                ? FindAll<HyperlinkButton>(recordsPage).FirstOrDefault(button => button.Content is string text && text.StartsWith("Show all", StringComparison.Ordinal))
+                : null;
+            bool filterHiddenWhileEmpty = !trackRecords.ShowFilter;
+            if (showAllRows is not null)
+            {
+                new HyperlinkButtonAutomationPeer(showAllRows).Invoke();
+            }
+
+            Expect(showAllRows is not null && filterHiddenWhileEmpty && !trackRecords.HideEmpty &&
+                   trackRecords.VisibleRows.Count == trackRecords.AllRows.Count && trackRecords.ShowFilter,
+                $"an all-hidden table offers Show all ({showAllRows is not null}), which shows {trackRecords.VisibleRows.Count} of {trackRecords.AllRows.Count} rows and the filter box ({filterHiddenWhileEmpty} -> {trackRecords.ShowFilter})");
+            trackRecords.HideEmpty = true;
+        }
+
         // A page that has been left must stop listening to the save's values; otherwise every later
         // refresh keeps pushing updates into its detached cells until garbage collection runs.
         TableBlock garageCars = Catalog.Page("garage")!.Blocks.OfType<TableBlock>().First(table => table.Title == "Cars");

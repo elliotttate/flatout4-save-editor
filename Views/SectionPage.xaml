@@ -432,7 +432,8 @@
                         Text="{x:Bind Description}"
                         Visibility="{x:Bind HasDescription}" />
                 </StackPanel>
-                <Grid ColumnSpacing="12">
+                <!--  Margins rather than ColumnSpacing: a collapsed filter box or checkbox leaves no gap.  -->
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
@@ -441,11 +442,13 @@
                     </Grid.ColumnDefinitions>
                     <TextBox
                         Width="240"
+                        Margin="0,0,12,0"
                         PlaceholderText="Filter rows"
                         Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        Visibility="{x:Bind ShowFilter}" />
+                        Visibility="{x:Bind ShowFilter, Mode=OneWay}" />
                     <CheckBox
                         Grid.Column="1"
+                        Margin="0,0,12,0"
                         Content="{x:Bind HideEmptyLabel}"
                         IsChecked="{x:Bind HideEmptyChecked, Mode=TwoWay}"
                         Visibility="{x:Bind CanHideEmpty}" />
@@ -457,6 +460,7 @@
                         Text="{x:Bind Summary, Mode=OneWay}" />
                     <ItemsRepeater
                         Grid.Column="3"
+                        Margin="12,0,0,0"
                         ItemTemplate="{StaticResource BlockActionTemplate}"
                         ItemsSource="{x:Bind Actions}">
                         <ItemsRepeater.Layout>
@@ -492,11 +496,20 @@
                                 x:Name="Rows"
                                 ItemTemplate="{StaticResource TableRowTemplate}"
                                 ItemsSource="{x:Bind VisibleRows}" />
-                            <TextBlock
-                                Margin="16,14"
-                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                Text="{x:Bind EmptyText, Mode=OneWay}"
-                                Visibility="{x:Bind HasNoVisibleRows, Mode=OneWay}" />
+                            <StackPanel
+                                Margin="16,8"
+                                Orientation="Horizontal"
+                                Spacing="4"
+                                Visibility="{x:Bind HasNoVisibleRows, Mode=OneWay}">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    Text="{x:Bind EmptyText, Mode=OneWay}" />
+                                <HyperlinkButton
+                                    Command="{x:Bind EmptyActionCommand}"
+                                    Content="{x:Bind EmptyActionText, Mode=OneWay}"
+                                    Visibility="{x:Bind HasEmptyAction, Mode=OneWay}" />
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
