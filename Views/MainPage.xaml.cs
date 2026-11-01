@@ -773,6 +773,7 @@ public sealed partial class MainPage : Page
         ("Ctrl+O", "Open a save file"),
         ("Ctrl+S", "Save"),
         ("Ctrl+F", "Search the save"),
+        ("Ctrl+Tab / Ctrl+Shift+Tab", "Next / previous section"),
         ("Ctrl+Z", "Undo (in a text box: undo typing)"),
         ("Ctrl+Y or Ctrl+Shift+Z", "Redo"),
         ("Enter", "Commit a typed value"),
@@ -823,6 +824,37 @@ public sealed partial class MainPage : Page
         {
             _ = SaveAsync();
         }
+    }
+
+    private void OnNextSectionAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        NavigateRelative(1);
+    }
+
+    private void OnPreviousSectionAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        NavigateRelative(-1);
+    }
+
+    // Steps through the sections in navigation order, wrapping around and skipping any that are
+    // unavailable (everything but Overview until a save is open). Returns the section shown.
+    public string? NavigateRelative(int direction)
+    {
+        string[] keys = EditorCatalog.Sections.Select(section => section.Key).ToArray();
+        int current = Array.FindIndex(keys, key => navItems.TryGetValue(key, out NavigationViewItem? item) && ReferenceEquals(Nav.SelectedItem, item));
+        for (int step = 1; step < keys.Length; step++)
+        {
+            string key = keys[(((current + (direction * step)) % keys.Length) + keys.Length) % keys.Length];
+            if (navItems.TryGetValue(key, out NavigationViewItem? item) && item.IsEnabled)
+            {
+                Navigate(key);
+                return key;
+            }
+        }
+
+        return null;
     }
 
     // Text boxes keep their own Ctrl+Z while focused; everywhere else it steps the save history.

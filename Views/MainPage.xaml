@@ -20,6 +20,14 @@
             Invoked="OnSearchAccelerator"
             Modifiers="Control" />
         <KeyboardAccelerator
+            Key="Tab"
+            Invoked="OnNextSectionAccelerator"
+            Modifiers="Control" />
+        <KeyboardAccelerator
+            Key="Tab"
+            Invoked="OnPreviousSectionAccelerator"
+            Modifiers="Control,Shift" />
+        <KeyboardAccelerator
             Key="Z"
             Invoked="OnUndoAccelerator"
             Modifiers="Control" />

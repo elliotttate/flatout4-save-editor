@@ -232,6 +232,20 @@ public sealed partial class MainPage
 
         Expect(revertFailures == 0 && session.ModifiedCount == 0, $"Revert straight after changing pages works every time ({revertFailures} of {revertAttempts} failed)");
 
+        // Ctrl+Tab / Ctrl+Shift+Tab step through the sections in navigation order and wrap around.
+        Navigate("options");
+        await Task.Delay(300);
+        string? next = NavigateRelative(1);
+        await Task.Delay(300);
+        string? back = NavigateRelative(-1);
+        await Task.Delay(300);
+        Navigate(EditorCatalog.OverviewKey);
+        await Task.Delay(300);
+        string? wrapped = NavigateRelative(-1);
+        await Task.Delay(300);
+        Expect(next == "controls" && back == "options" && wrapped == EditorCatalog.AllFieldsKey,
+            $"section keys step Options -> {next} -> {back}, and back from Overview wraps to {wrapped}");
+
         // A remembered window spot is only used while its title bar is on a display.
         var primary = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
         bool centreOk = WindowPlacement.IsOnADisplay(new Windows.Graphics.RectInt32(primary.X + 100, primary.Y + 100, 1200, 800));
