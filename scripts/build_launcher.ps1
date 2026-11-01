@@ -7,7 +7,7 @@
 # writes one setup exe to artifacts\release.
 
 param(
-    [string]$Version = "0.4.7",
+    [string]$Version = "0.4.8",
     [string]$RepoRoot = (Resolve-Path "$PSScriptRoot\..").Path
 )
 
