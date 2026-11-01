@@ -24,6 +24,28 @@ public sealed partial class MainPage
         SaveSession session = Session;
         App.SnapshotLog("SELFTEST start");
 
+        // How long each section takes to appear: navigation until the page is loaded and the
+        // dispatcher is idle again (first layout done). Logged for every section.
+        var openTimes = new List<(string Key, long Ms)>();
+        foreach (EditorCatalog.SectionInfo section in EditorCatalog.Sections)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            Navigate(section.Key);
+            if (ContentFrame.Content is FrameworkElement { IsLoaded: false } opening)
+            {
+                var loaded = new TaskCompletionSource();
+                opening.Loaded += (_, _) => loaded.TrySetResult();
+                await Task.WhenAny(loaded.Task, Task.Delay(5000));
+            }
+
+            await IdleAsync();
+            openTimes.Add((section.Key, watch.ElapsedMilliseconds));
+        }
+
+        App.SnapshotLog("SELFTEST section open times: " + string.Join(", ", openTimes.Select(time => $"{time.Key} {time.Ms} ms")));
+        (string slowest, long slowestMs) = openTimes.MaxBy(time => time.Ms);
+        Expect(slowestMs < 1500, $"every section opens within 1.5 s (slowest: {slowest} {slowestMs} ms)");
+
         // A page that has been left must stop listening to the save's values; otherwise every later
         // refresh keeps pushing updates into its detached cells until garbage collection runs.
         TableBlock garageCars = Catalog.Page("garage")!.Blocks.OfType<TableBlock>().First(table => table.Title == "Cars");
@@ -390,6 +412,18 @@ public sealed partial class MainPage
         }
 
         App.SnapshotLog(selfTestFailures == 0 ? "SELFTEST ALL PASSED" : $"SELFTEST {selfTestFailures} FAILED");
+    }
+
+    // Resumes once the dispatcher has run everything queued ahead of a low-priority item.
+    private Task IdleAsync()
+    {
+        var idle = new TaskCompletionSource();
+        if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => idle.TrySetResult()))
+        {
+            idle.TrySetResult();
+        }
+
+        return idle.Task;
     }
 
     // PropertyChanged subscribers on a view model (bindings, rows, catalog); diagnostics only.
