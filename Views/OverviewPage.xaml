@@ -141,6 +141,40 @@
             </Button>
         </DataTemplate>
 
+        <DataTemplate x:Key="QuickActionTemplate" x:DataType="vm:QuickAction">
+            <Button
+                AutomationProperties.Name="{x:Bind Title}"
+                Click="OnQuickActionClicked"
+                Style="{StaticResource CardButtonStyle}"
+                Tag="{x:Bind}">
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid
+                        Width="36"
+                        Height="36"
+                        VerticalAlignment="Top"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        CornerRadius="8">
+                        <FontIcon
+                            FontSize="16"
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            Glyph="{x:Bind Glyph}" />
+                    </Grid>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Title}" />
+                        <TextBlock
+                            MaxLines="2"
+                            Style="{StaticResource SecondaryCaptionStyle}"
+                            Text="{x:Bind Description}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </Button>
+        </DataTemplate>
+
         <DataTemplate x:Key="SectionCardTemplate" x:DataType="vm:PageViewModel">
             <Button
                 Click="OnSectionClicked"
@@ -373,6 +407,23 @@
                 </StackPanel>
 
                 <StackPanel Spacing="12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource BlockTitleStyle}" Text="Quick actions" />
+                        <TextBlock Style="{StaticResource SecondaryCaptionStyle}" Text="Common edits in one click. Each is a single undo step, and nothing is written until you save." />
+                    </StackPanel>
+                    <ItemsControl
+                        x:Name="QuickActionsRepeater"
+                        IsTabStop="False"
+                        ItemTemplate="{StaticResource QuickActionTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <views:AdaptiveGridPanel MinItemWidth="300" ColumnSpacing="8" RowSpacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="12">
                     <TextBlock Style="{StaticResource BlockTitleStyle}" Text="Sections" />
                     <ItemsControl x:Name="SectionsRepeater" ItemTemplate="{StaticResource SectionCardTemplate}"
                         IsTabStop="False">
@@ -383,32 +434,6 @@
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
                 </StackPanel>
-
-                <Border
-                    MaxWidth="1080"
-                    HorizontalAlignment="Stretch"
-                    Padding="20,16"
-                    Style="{StaticResource CardBorderStyle}">
-                    <Grid ColumnSpacing="20">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Spacing="2">
-                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Unlock everything" />
-                            <TextBlock Style="{StaticResource SecondaryCaptionStyle}" Text="Gold in every career event, every garage item unlocked and challenge records maxed, using the same fields as the game's debug Unlock All. Nothing is written until you save." />
-                        </StackPanel>
-                        <Button
-                            Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Click="OnUnlockAllClicked">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontSize="14" Glyph="&#xE785;" />
-                                <TextBlock Text="Unlock all" />
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-                </Border>
             </StackPanel>
         </Grid>
     </ScrollViewer>

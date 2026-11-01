@@ -30,7 +30,7 @@ The start page lists the saves you opened recently, then everything it finds, gr
 
 ## Editing
 
-- **Overview**: file details, at-a-glance tiles (credits, career medals, trophies, garage, tracks, races, play time, challenge score) and a card for every section.
+- **Overview**: quick actions (Unlock everything, gold every career event, own every car, unlock all trophies, add credits; each one undo step), file details, at-a-glance tiles (credits, career medals, trophies, garage, tracks, races, play time, challenge score) and a card for every section.
 - **Career**: credits, a medal picker for each of the 48 career events grouped by class and tier, the cup in progress and the raw event result slots.
 - **Garage**: unlock state and upgrade level per car, selected paint, loadouts, tracks, skins, drivers, boost effects and horns, all by name, plus Unlock all / Own all per table.
 - **Challenges, Trophies, Records, Statistics, Favorites**: trophies with their in-game names and descriptions, lap records as `m:ss.fff` per named track, stats grouped by topic, per-mode tables.

@@ -106,12 +106,16 @@ public sealed class EditorCatalog
         }
 
         IndexChangeEntries();
+        QuickActions = BuildQuickActions();
 
         RefreshExtensionNote();
         session.DataChanged += OnDataChanged;
     }
 
     public CareerProgress Career { get; }
+
+    // The Overview's one-click edits, each one undo step. They reuse the pages' own actions.
+    public IReadOnlyList<QuickAction> QuickActions { get; private set; } = [];
 
     public IReadOnlyList<PageViewModel> Pages => pages;
 
@@ -136,6 +140,45 @@ public sealed class EditorCatalog
     }
 
     public int ChangeCount => session.ChangedFields().Count;
+
+    private IReadOnlyList<QuickAction> BuildQuickActions()
+    {
+        int eventCount = careerBlocks.Sum(block => block.Events.Count);
+        var actions = new List<QuickAction>
+        {
+            new(
+                "Gold every career event",
+                "\uE735",
+                $"A gold medal in all {eventCount} career events, with their result slots.",
+                new RelayCommand(() => session.Batch(() =>
+                {
+                    foreach (CareerEventViewModel careerEvent in careerBlocks.SelectMany(block => block.Events))
+                    {
+                        Career.SetMedalIndex(careerEvent.Event.Id, 3);
+                    }
+                }, "Gold every career event")),
+                "Every career event now has gold.")
+        };
+
+        if (tables.FirstOrDefault(table => table.Title == "Cars")?.Actions.FirstOrDefault(action => action.Label == "Own all") is { } ownCars)
+        {
+            actions.Add(new QuickAction("Own every car", "\uE804", "Every car in the garage marked Owned. DLC cars are left alone.", ownCars.Command, "Every car is now owned."));
+        }
+
+        if (trophyBlocks.FirstOrDefault()?.Actions.FirstOrDefault(action => action.Label == "Unlock all") is { } unlockTrophies)
+        {
+            actions.Add(new QuickAction("Unlock all trophies", "\uE734", $"All {FlatOut4SaveSchema.TrophyNames.Length} in-game trophies. Steam achievements are separate.", unlockTrophies.Command, "Every trophy is unlocked."));
+        }
+
+        SaveFieldViewModel credits = session.Field("m_oCareerData.m_iCredits");
+        actions.Add(new QuickAction(
+            "Add 1,000,000 credits",
+            "\uE8C7",
+            "Adds a million to the career wallet.",
+            new RelayCommand(() => session.Group(() => credits.WriteInteger(Math.Min(credits.ReadInteger() + 1_000_000, int.MaxValue)), "Add 1,000,000 credits")),
+            "Added 1,000,000 credits."));
+        return actions;
+    }
 
     // Where a field is shown, so Review changes and Save health can jump straight to it.
     public ChangeEntry Describe(SaveFieldViewModel field) =>

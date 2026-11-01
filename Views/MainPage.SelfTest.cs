@@ -151,6 +151,27 @@ public sealed partial class MainPage
         new ButtonAutomationPeer(RedoButton).Invoke();
         Expect(trophy.BoolValue == trophyNow, "the Redo button applies it again");
 
+        // The Overview's quick actions: Gold every career event is one click and one undo step.
+        Navigate(EditorCatalog.OverviewKey);
+        await Task.Delay(700);
+        Button? goldAll = ContentFrame.Content is OverviewPage overviewPage
+            ? FindAll<Button>(overviewPage).FirstOrDefault(button => button.Tag is QuickAction { Title: "Gold every career event" })
+            : null;
+        int goldBefore = Services.FlatOut4GameData.CareerEvents.Count(careerEvent => Catalog.Career.GetMedalIndex(careerEvent.Id) == 3);
+        if (goldAll is null)
+        {
+            Expect(false, "the Overview offers Gold every career event");
+        }
+        else
+        {
+            new ButtonAutomationPeer(goldAll).Invoke();
+            int goldAfter = Services.FlatOut4GameData.CareerEvents.Count(careerEvent => Catalog.Career.GetMedalIndex(careerEvent.Id) == 3);
+            new SplitButtonAutomationPeer(UndoButton).Invoke();
+            int goldUndone = Services.FlatOut4GameData.CareerEvents.Count(careerEvent => Catalog.Career.GetMedalIndex(careerEvent.Id) == 3);
+            Expect(goldAfter == Services.FlatOut4GameData.CareerEvents.Count && goldUndone == goldBefore,
+                $"the Gold every career event quick action golds all {goldAfter} events and one Undo takes them back ({goldUndone})");
+        }
+
         // The arrow beside Undo lists recent changes newest first; picking the second undoes both.
         SaveFieldViewModel invertY = session.Field("m_oGameOptions.m_oGameplayOptions.m_uCamYInversed");
         SaveFieldViewModel wallet = session.Field("m_oCareerData.m_iCredits");

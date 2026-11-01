@@ -25,6 +25,9 @@ public sealed class PageViewModel
 
 public sealed record BlockAction(string Label, string Glyph, ICommand Command, string Tooltip = "");
 
+// A common one-click edit offered on the Overview; DoneMessage goes to the status bar.
+public sealed record QuickAction(string Title, string Glyph, string Description, ICommand Command, string DoneMessage = "");
+
 public abstract class PageBlock : ObservableObject
 {
     public string Title { get; init; } = string.Empty;

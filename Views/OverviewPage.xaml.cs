@@ -1,3 +1,4 @@
+using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.Services;
 using FlatOut4SaveEditor.ViewModels;
 using Microsoft.UI.Xaml.Navigation;
@@ -67,6 +68,7 @@ public sealed partial class OverviewPage : Page
         HealthGlyph.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[needsRepair ? "SystemFillColorCautionBrush" : "SystemFillColorSuccessBrush"];
 
         TilesRepeater.ItemsSource = overview.Tiles;
+        QuickActionsRepeater.ItemsSource = QuickActions();
         SectionsRepeater.ItemsSource = overview.Sections;
     }
 
@@ -180,5 +182,26 @@ public sealed partial class OverviewPage : Page
 
     private void OnHealthClicked(object sender, RoutedEventArgs e) => shell?.Navigate(EditorCatalog.HealthKey);
 
-    private void OnUnlockAllClicked(object sender, RoutedEventArgs e) => _ = shell?.UnlockAllAsync();
+    // Unlock everything (the game's debug Unlock All) first, then the catalog's single edits.
+    private IReadOnlyList<QuickAction> QuickActions() =>
+    [
+        new QuickAction(
+            "Unlock everything",
+            "\uE785",
+            "Gold medals, the whole garage and maxed challenges, like the game's debug Unlock All.",
+            new RelayCommand(() => _ = shell?.UnlockAllAsync())),
+        .. shell?.Catalog?.QuickActions ?? []
+    ];
+
+    private void OnQuickActionClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: QuickAction action })
+        {
+            action.Command.Execute(null);
+            if (!string.IsNullOrEmpty(action.DoneMessage))
+            {
+                shell?.ShowStatus($"{action.DoneMessage} Ctrl+Z undoes it.", InfoBarSeverity.Success, autoHide: true);
+            }
+        }
+    }
 }
