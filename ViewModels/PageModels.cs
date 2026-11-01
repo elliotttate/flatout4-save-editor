@@ -384,7 +384,35 @@ public sealed class CareerEventViewModel : ObservableObject
 
     public string Title => Event.DisplayName;
 
-    public string Subtitle => Event.Index;
+    // Where the event is played: "Track · Lap race", or "4 rounds: track, track, ..." for a cup.
+    public string Subtitle => Rounds.Length switch
+    {
+        0 => Event.Index,
+        1 => $"{Services.FlatOut4GameData.TrackName(Rounds[0].Track)} · {ModeName(Rounds[0].Mode)}",
+        _ => $"{Rounds.Length} rounds: {string.Join(", ", Rounds.Select(round => Services.FlatOut4GameData.TrackName(round.Track)))}"
+    };
+
+    // Every round on its own line, with the event's internal index.
+    public string RoundsToolTip => Rounds.Length == 0
+        ? Event.Index
+        : string.Join("\n", Rounds.Select((round, i) => $"{i + 1}. {Services.FlatOut4GameData.TrackName(round.Track)} · {ModeName(round.Mode)}")) + $"\n{Event.Index}";
+
+    private (int Track, string Mode)[] Rounds =>
+        Services.FlatOut4CareerTracks.Rounds.TryGetValue(Event.Index, out (int Track, string Mode)[]? rounds) ? rounds : [];
+
+    private static string ModeName(string mode) => mode switch
+    {
+        "RACE_TIMED" => "Time trial",
+        "RACE_LAP" => "Lap race",
+        "RACE_TRAP" => "Assault race",
+        "RACE_DERBY" => "Derby race",
+        "RACE_BOMB" => "Bomb race",
+        "ARENA_SURVIVOR" => "Arena survivor",
+        "ARENA_DEATH_MATCH" => "Arena deathmatch",
+        "ARENA_KEEP_THE_FLAG" => "Keep the flag",
+        "STUNT" => "Stunt",
+        _ => mode
+    };
 
     public string KindGlyph => Event.Kind switch
     {

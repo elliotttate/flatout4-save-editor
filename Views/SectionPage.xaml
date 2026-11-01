@@ -260,7 +260,11 @@
                         Style="{StaticResource SecondaryCaptionStyle}"
                         Text="{x:Bind Subtitle}"
                         TextTrimming="CharacterEllipsis"
-                        TextWrapping="NoWrap" />
+                        TextWrapping="NoWrap">
+                        <ToolTipService.ToolTip>
+                            <ToolTip Content="{x:Bind RoundsToolTip}" />
+                        </ToolTipService.ToolTip>
+                    </TextBlock>
                 </StackPanel>
                 <ComboBox
                     Grid.Column="2"

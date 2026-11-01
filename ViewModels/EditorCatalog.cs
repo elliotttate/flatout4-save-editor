@@ -306,7 +306,7 @@ public sealed class EditorCatalog
                     case CareerEventsBlock events:
                         foreach (CareerEventViewModel careerEvent in events.Events)
                         {
-                            AddIfMatch(results, query, careerEvent.Event.FullName, context, careerEvent.KindGlyph, page, block, careerEvent, careerEvent.Event.Index);
+                            AddIfMatch(results, query, careerEvent.Event.FullName, context, careerEvent.KindGlyph, page, block, careerEvent, $"{careerEvent.Event.Index} {careerEvent.Subtitle}");
                         }
 
                         break;
@@ -331,6 +331,12 @@ public sealed class EditorCatalog
             .ThenBy(result => result.Title.Length)
             .Take(max)
             .ToArray();
+    }
+
+    private static bool HasEveryWord(string query, string text)
+    {
+        string[] words = query.Split([' ', '·', '›', ','], StringSplitOptions.RemoveEmptyEntries);
+        return words.Length > 1 && words.All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase));
     }
 
     private static void AddIfMatch(
@@ -362,6 +368,15 @@ public sealed class EditorCatalog
         else if (extra.Contains(query, StringComparison.OrdinalIgnoreCase))
         {
             rank = 10;
+        }
+        else if (HasEveryWord(query, title))
+        {
+            // "derby cup 1" finds "Derby · Tier 1 · Cup 1": every word, in any order.
+            rank = 8;
+        }
+        else if (HasEveryWord(query, $"{title} {context} {extra}"))
+        {
+            rank = 4;
         }
         else
         {

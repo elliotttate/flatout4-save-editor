@@ -31,14 +31,14 @@ The start page lists the saves you opened recently, then everything it finds, gr
 ## Editing
 
 - **Overview**: quick actions (Unlock everything, gold every career event, own every car, unlock all trophies, add credits; each one undo step), file details, at-a-glance tiles (credits, career medals, trophies, garage, tracks, races, play time, challenge score) and a card for every section.
-- **Career**: credits, a medal picker for each of the 48 career events grouped by class and tier, the cup in progress and the raw event result slots.
+- **Career**: credits, a medal picker for each of the 48 career events grouped by class and tier (each shows its tracks and modes), the cup in progress and the raw event result slots.
 - **Garage**: unlock state and upgrade level per car, selected paint, loadouts, tracks, skins, drivers, boost effects and horns, all by name, plus Unlock all / Own all per table.
 - **Challenges, Trophies, Records, Statistics, Favorites**: trophies with their in-game names and descriptions, lap records as `m:ss.fff` per named track, stats grouped by topic, per-mode tables.
 - **Options**: gameplay, camera, comfort, steering wheel, VR motion steering, input, audio and telemetry, with sliders and pickers that respect the game's ranges.
 - **Controls**: race and menu bindings shown as key, button and axis names for keyboard, gamepad and wheel, plus device tuning.
 - **Extensions** and **All fields** for the raw view: every value with its C++ name, offset and type.
 
-Ctrl+Tab and Ctrl+Shift+Tab step through the sections; More › Keyboard shortcuts lists every shortcut. Search (Ctrl+F) finds sections, settings, cars, tracks, trophies, career events and bindings and jumps straight to them. Long pages have a jump bar that follows the scroll position, and the navigation shows how many unsaved changes each section holds.
+Ctrl+Tab and Ctrl+Shift+Tab step through the sections; More › Keyboard shortcuts lists every shortcut. Search (Ctrl+F) matches every word in any order and finds sections, settings, cars, tracks, trophies, career events and bindings and jumps straight to them. Long pages have a jump bar that follows the scroll position, and the navigation shows how many unsaved changes each section holds.
 
 **Review changes** (or the unsaved-changes pill) lists every edit as old → new value, grouped by section; select one to jump to it or revert just that value. Changed cards and table rows also carry their own revert button.
 
@@ -74,7 +74,7 @@ One-file release asset:
 
 Every configuration carries the Windows App SDK runtime, so a Debug build runs without a matching runtime installed.
 
-`scripts/gen_control_names.py` regenerates the binding names from the engine's `InputStates.h`, and `scripts/gen_customization_names.py` regenerates the skin, driver, boost and horn names from the game's factory configs and `LOCALISATION.h`.
+`scripts/gen_control_names.py` regenerates the binding names from the engine's `InputStates.h`, and `scripts/gen_customization_names.py` regenerates the skin, driver, boost and horn names from the game's factory configs and `LOCALISATION.h`. `scripts/gen_career_tracks.py` regenerates each career event's tracks and modes from the `Events*Level*.cfg` factories.
 
 ### Command line
 
