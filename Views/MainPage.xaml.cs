@@ -1,347 +1,945 @@
-using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices.WindowsRuntime;
 using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.Services;
+using FlatOut4SaveEditor.ViewModels;
 using Microsoft.UI.Text;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.Storage.Streams;
 using WinRT.Interop;
 
-namespace FlatOut4SaveEditor.Views
+namespace FlatOut4SaveEditor.Views;
+
+public sealed partial class MainPage : Page
 {
-    public partial class MainPage : Page
+    private readonly FlatOut4SaveSchema schema = FlatOut4SaveSchema.Create();
+    private readonly Dictionary<string, NavigationViewItem> navItems = [];
+    private readonly Dictionary<string, InfoBadge> navBadges = [];
+    private CancellationTokenSource? statusTimer;
+    private int expectedChanges;
+
+    public MainPage()
     {
-        private readonly FlatOut4SaveSchema schema = FlatOut4SaveSchema.Create();
-        private readonly List<SaveFieldViewModel> allFields = [];
-        private FlatOut4SaveDocument? document;
+        InitializeComponent();
+        BuildNavigation();
+        Loaded += OnLoaded;
+    }
 
-        public MainPage()
+    public SaveSession? Session { get; private set; }
+
+    public EditorCatalog? Catalog { get; private set; }
+
+    public OverviewModel? Overview { get; private set; }
+
+    public IReadOnlyList<FlatOut4SaveCandidate> Candidates { get; private set; } = [];
+
+    public bool HasScanned { get; private set; }
+
+    public UIElement TitleBarElement => AppTitleBar;
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        App.SnapshotLog("MainPage loaded");
+        Navigate(EditorCatalog.OverviewKey);
+
+        if (App.StartupPath is { } startupPath)
         {
-            InitializeComponent();
-            VisibleFields = [];
-            DataContext = this;
+            await OpenAsync(startupPath, null);
+        }
 
-            SectionBox.ItemsSource = new[]
+        await ScanAsync();
+
+        if (App.SnapshotDirectory is { } snapshotDirectory)
+        {
+            await RunSnapshotAsync(snapshotDirectory);
+        }
+    }
+
+    private void BuildNavigation()
+    {
+        string category = string.Empty;
+        foreach (EditorCatalog.SectionInfo info in EditorCatalog.Sections)
+        {
+            if (info.Category != category && info.Category.Length > 0)
             {
-                "All",
-                "Header",
-                "Options",
-                "Input",
-                "Stats",
-                "Trophies",
-                "Career",
-                "Garage",
-                "Challenge",
-                "Records",
-                "Favorites",
-                "Extra",
-                "Padding",
-                "Footer"
+                Nav.MenuItems.Add(new NavigationViewItemHeader { Content = info.Category });
+            }
+
+            category = info.Category;
+            var item = new NavigationViewItem
+            {
+                Content = info.Title,
+                Tag = info.Key,
+                Icon = new FontIcon { Glyph = info.Glyph }
             };
-            SectionBox.SelectedIndex = 0;
+            ToolTipService.SetToolTip(item, info.Subtitle);
+            navItems[info.Key] = item;
+            Nav.MenuItems.Add(item);
+        }
+
+        UpdateChrome();
+    }
+
+    public void Navigate(string key, SearchResult? target = null)
+    {
+        if (key != EditorCatalog.OverviewKey && Catalog is null)
+        {
+            key = EditorCatalog.OverviewKey;
+        }
+
+        if (navItems.TryGetValue(key, out NavigationViewItem? item) && !ReferenceEquals(Nav.SelectedItem, item))
+        {
+            Nav.SelectedItem = item;
+        }
+
+        if (target is not null && ContentFrame.Content is SectionPage current && current.ViewModel?.Key == key)
+        {
+            _ = current.RevealAsync(target);
+            return;
+        }
+
+        var transition = new EntranceNavigationTransitionInfo();
+        if (key == EditorCatalog.OverviewKey)
+        {
+            ContentFrame.Navigate(typeof(OverviewPage), this, transition);
+        }
+        else if (key == EditorCatalog.AllFieldsKey)
+        {
+            ContentFrame.Navigate(typeof(AllFieldsPage), this, transition);
+        }
+        else if (key == EditorCatalog.ChangesKey)
+        {
+            ContentFrame.Navigate(typeof(ChangesPage), this, transition);
+        }
+        else if (key == EditorCatalog.HealthKey)
+        {
+            // The page shows the whole load report, so the banner would only repeat it.
+            WarningBar.IsOpen = false;
+            ContentFrame.Navigate(typeof(HealthPage), this, transition);
+        }
+        else if (Catalog?.Page(key) is { } page)
+        {
+            ContentFrame.Navigate(typeof(SectionPage), new PageNavigation(page, target, this), transition);
+        }
+
+        ContentFrame.BackStack.Clear();
+    }
+
+    private void OnNavItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItemContainer?.Tag is string key)
+        {
+            Navigate(key);
+        }
+    }
+
+    public async Task OpenAsync(string path, FlatOut4SaveCandidate? candidate)
+    {
+        if (!await ConfirmDiscardAsync())
+        {
+            return;
+        }
+
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            candidate ??= Candidates.FirstOrDefault(item => string.Equals(item.Path, fullPath, StringComparison.OrdinalIgnoreCase));
+            (SaveSession session, EditorCatalog catalog, OverviewModel overview) = await Task.Run(() =>
+            {
+                FlatOut4SaveDocument document = FlatOut4SaveFile.Load(fullPath, schema);
+                var newSession = new SaveSession(document, schema, candidate);
+                var newCatalog = new EditorCatalog(newSession);
+                return (newSession, newCatalog, new OverviewModel(newSession, newCatalog));
+            });
+
+            AttachSession(session, catalog, overview);
+            FlatOut4RecentFiles.Add(fullPath);
+            ShowLoadReport(session, catalog);
+            Navigate(EditorCatalog.OverviewKey);
+        }
+        catch (Exception ex)
+        {
+            App.SnapshotLog(ex.ToString());
+            await ShowMessageAsync("Could not open the save", ex.Message);
+        }
+    }
+
+    // What happened while reading: a conversion, a recovery, or values the game cannot use.
+    private void ShowLoadReport(SaveSession session, EditorCatalog catalog)
+    {
+        int issues = catalog.HealthIssues().Count;
+        string warning = session.Document.Warning;
+        FlatOut4SaveRecoveryReport? recovery = session.Document.Recovery;
+        if (recovery is null && issues > 0)
+        {
+            warning = string.IsNullOrWhiteSpace(warning) ? string.Empty : warning + " ";
+            warning += $"{Ui.Count(issues, "value in this save is", "values in this save are")} not something the game writes. Save health shows them and can repair them.";
+        }
+
+        WarningBar.Title = recovery?.Title ?? (issues > 0 ? "Damaged values" : "Converted on load");
+        WarningBar.Message = warning;
+        WarningBar.Severity = recovery is not null || issues > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
+        WarningBar.ActionButton = recovery is not null || issues > 0 ? HealthDetailsButton() : null;
+        WarningBar.IsOpen = !string.IsNullOrWhiteSpace(warning);
+        if (!WarningBar.IsOpen)
+        {
+            ShowStatus($"Opened {session.FileName}.", InfoBarSeverity.Success, autoHide: true);
+        }
+    }
+
+    private Button HealthDetailsButton()
+    {
+        var button = new Button { Content = "Save health" };
+        button.Click += (_, _) => Navigate(EditorCatalog.HealthKey);
+        return button;
+    }
+
+    private void AttachSession(SaveSession session, EditorCatalog catalog, OverviewModel overview)
+    {
+        if (Session is not null)
+        {
+            Session.PropertyChanged -= OnSessionPropertyChanged;
+            Catalog?.Detach();
+        }
+
+        Session = session;
+        Catalog = catalog;
+        Overview = overview;
+        session.PropertyChanged += OnSessionPropertyChanged;
+        SearchBox.Text = string.Empty;
+        UpdateChrome();
+    }
+
+    private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChrome();
+
+    private void UpdateChrome()
+    {
+        bool hasSession = Session is not null;
+        foreach ((string key, NavigationViewItem item) in navItems)
+        {
+            item.IsEnabled = hasSession || key == EditorCatalog.OverviewKey;
+        }
+
+        UpdateBadges();
+        SearchBox.IsEnabled = hasSession;
+        UnlockAllButton.IsEnabled = hasSession;
+        SaveAsItem.IsEnabled = hasSession;
+        ReloadItem.IsEnabled = hasSession;
+        RevealItem.IsEnabled = hasSession;
+        RevertButton.IsEnabled = Session?.HasChanges == true;
+        UndoButton.IsEnabled = Session?.CanUndo == true;
+        RedoButton.IsEnabled = Session?.CanRedo == true;
+        ToolTipService.SetToolTip(UndoButton, Session?.UndoLabel is { } undo ? $"Undo {undo} (Ctrl+Z)" : "Undo (Ctrl+Z)");
+        ToolTipService.SetToolTip(RedoButton, Session?.RedoLabel is { } redo ? $"Redo {redo} (Ctrl+Y)" : "Redo (Ctrl+Y)");
+        SaveButton.IsEnabled = Session?.NeedsWrite == true;
+
+        if (Session is null)
+        {
+            ChangesPill.Visibility = Visibility.Collapsed;
+            TitleFileText.Text = string.Empty;
+            return;
+        }
+
+        int changes = Session.ModifiedCount;
+        ChangesPill.Visibility = Session.NeedsWrite ? Visibility.Visible : Visibility.Collapsed;
+        ChangesText.Text = changes > 0
+            ? (changes == 1 ? "1 unsaved change" : $"{changes:N0} unsaved changes")
+            : "Converted, not saved yet";
+
+        string source = Session.Origin?.KindLabel ?? string.Empty;
+        TitleFileText.Text = $"{(Session.HasChanges ? "* " : string.Empty)}{Session.FileName}{(source.Length > 0 ? $"  ·  {source}" : string.Empty)}";
+        App.MainWindow.Title = $"{(Session.HasChanges ? "* " : string.Empty)}{Session.FileName} - FlatOut 4 Save Editor";
+    }
+
+    // A count on each section that holds unsaved edits.
+    private void UpdateBadges()
+    {
+        foreach ((string key, NavigationViewItem item) in navItems)
+        {
+            if (key is EditorCatalog.OverviewKey or EditorCatalog.AllFieldsKey)
+            {
+                continue;
+            }
+
+            string subtitle = EditorCatalog.Sections.First(section => section.Key == key).Subtitle;
+            if (key == EditorCatalog.HealthKey)
+            {
+                int issues = Catalog?.HealthIssues().Count ?? 0;
+                item.InfoBadge = issues == 0 ? null : HealthBadge(issues);
+                ToolTipService.SetToolTip(item, issues == 0 ? subtitle : $"{subtitle}\n{Ui.Count(issues, "value needs", "values need")} repair");
+                continue;
+            }
+
+            int count = key == EditorCatalog.ChangesKey ? Catalog?.ChangeCount ?? 0 : Catalog?.ModifiedCount(key) ?? 0;
+            if (count == 0)
+            {
+                item.InfoBadge = null;
+                ToolTipService.SetToolTip(item, subtitle);
+                continue;
+            }
+
+            if (!navBadges.TryGetValue(key, out InfoBadge? badge))
+            {
+                badge = new InfoBadge();
+                navBadges[key] = badge;
+            }
+
+            badge.Value = count;
+            item.InfoBadge = badge;
+            ToolTipService.SetToolTip(item, $"{subtitle}\n{Ui.Count(count, "unsaved change", "unsaved changes")}");
+        }
+    }
+
+    private InfoBadge HealthBadge(int issues)
+    {
+        if (!navBadges.TryGetValue(EditorCatalog.HealthKey, out InfoBadge? badge))
+        {
+            badge = new InfoBadge();
+            if (Application.Current.Resources.TryGetValue("CautionValueInfoBadgeStyle", out object? style) && style is Style caution)
+            {
+                badge.Style = caution;
+            }
+
+            navBadges[EditorCatalog.HealthKey] = badge;
+        }
+
+        badge.Value = issues;
+        return badge;
+    }
+
+    private async Task ScanAsync()
+    {
+        try
+        {
+            Candidates = await Task.Run(() => FlatOut4SaveFile.FindSaveCandidates(schema));
+        }
+        catch (Exception ex)
+        {
+            Candidates = [];
+            ShowStatus($"Could not scan for saves: {ex.Message}", InfoBarSeverity.Warning);
+        }
+
+        HasScanned = true;
+        App.SnapshotLog($"scan: {Candidates.Count} candidates");
+        if (ContentFrame.Content is OverviewPage overviewPage)
+        {
+            overviewPage.Render();
+        }
+    }
+
+    public async Task FindSavesAsync(bool openSingle)
+    {
+        await ScanAsync();
+        if (Candidates.Count == 0)
+        {
+            string locations = string.Join(Environment.NewLine, FlatOut4SaveFile.GetCheckedSaveLocations());
+            await ShowMessageAsync(
+                "No FlatOut saves found",
+                $"Checked Steam Cloud, the usual save folders and developer test slots:{Environment.NewLine}{Environment.NewLine}{locations}{Environment.NewLine}{Environment.NewLine}Use Open to browse to a file somewhere else.");
+            return;
+        }
+
+        if (Session is null && !openSingle)
+        {
+            Navigate(EditorCatalog.OverviewKey);
+            ShowStatus($"Found {Candidates.Count:N0} saves. Pick one below.", InfoBarSeverity.Informational, autoHide: true);
+            return;
+        }
+
+        FlatOut4SaveCandidate? chosen = Candidates.Count == 1 && openSingle ? Candidates[0] : await PickCandidateAsync();
+        if (chosen is not null)
+        {
+            await OpenAsync(chosen.Path, chosen);
+        }
+    }
+
+    public async Task BrowseAsync()
+    {
+        var picker = new FileOpenPicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            ViewMode = PickerViewMode.List
+        };
+        picker.FileTypeFilter.Add("*");
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+
+        StorageFile? file = await picker.PickSingleFileAsync();
+        if (file is not null)
+        {
+            await OpenAsync(file.Path, null);
+        }
+    }
+
+    public async Task<bool> SaveAsync()
+    {
+        if (Session?.Document.Path is not { } path)
+        {
+            return false;
+        }
+
+        SaveFieldViewModel? invalid = Session.Fields.FirstOrDefault(field => field.HasError);
+        if (invalid is not null)
+        {
+            await ShowMessageAsync("Fix invalid values first", $"{invalid.FullName}: {invalid.Error}");
+            return false;
+        }
+
+        try
+        {
+            string? backup = FlatOut4SaveFile.Save(Session.Document, path, BackupToggle.IsOn);
+            Session.MarkSaved();
+            WarningBar.IsOpen = false;
+            ShowStatus(
+                backup is null ? $"Saved {Session.FileName}." : $"Saved {Session.FileName}. Previous file kept as {Path.GetFileName(backup)}.",
+                InfoBarSeverity.Success,
+                autoHide: true);
+            RefreshOverviewPage();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageAsync("Save failed", ex.Message);
+            return false;
+        }
+    }
+
+    private async Task SaveAsAsync()
+    {
+        if (Session is null)
+        {
+            return;
+        }
+
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = Path.GetFileNameWithoutExtension(Session.FileName) + " copy"
+        };
+        picker.FileTypeChoices.Add("FlatOut save", [".dat"]);
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+
+        StorageFile? file = await picker.PickSaveFileAsync();
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            FlatOut4SaveFile.Save(Session.Document, file.Path, createBackup: false);
+            Session.MarkSaved();
+            FlatOut4RecentFiles.Add(file.Path);
+            ShowStatus($"Saved a copy to {file.Path}. Further saves go to the copy.", InfoBarSeverity.Success, autoHide: true);
             UpdateChrome();
+            RefreshOverviewPage();
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageAsync("Save failed", ex.Message);
+        }
+    }
+
+    public async Task RevertAsync()
+    {
+        if (Session?.HasChanges != true)
+        {
+            return;
         }
 
-        public ObservableCollection<SaveFieldViewModel> VisibleFields { get; }
-
-        private async void OnOpenClicked(object sender, RoutedEventArgs e)
+        var dialog = new ContentDialog
         {
-            string? path = await ShowOpenFileDialogAsync();
-            if (!string.IsNullOrWhiteSpace(path))
-            {
-                LoadSave(path);
-            }
+            Title = "Revert all changes?",
+            Content = $"{Ui.Count(Session.ModifiedCount, "value goes", "values go")} back to what was loaded from {Session.FileName}.",
+            PrimaryButtonText = "Revert",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            Session.Revert();
+            ShowStatus("Changes reverted.", InfoBarSeverity.Informational, autoHide: true);
+        }
+    }
+
+    public async Task UnlockAllAsync()
+    {
+        if (Session is null)
+        {
+            return;
         }
 
-        private async void OnDetectClicked(object sender, RoutedEventArgs e)
+        try
         {
-            try
+            FlatOut4UnlockAllResult? unlocked = null;
+            Session.ApplyExternal(() => unlocked = FlatOut4SaveUnlocker.ApplyDebugUnlockAll(Session.Document, schema), "Unlock all");
+            FlatOut4UnlockAllResult result = unlocked!;
+            ShowStatus(
+                result.Changed
+                    ? $"Unlock All: {result.CareerEventsCompleted:N0} career events at gold, {result.GarageEntriesUnlocked:N0} garage entries unlocked, {result.ChallengeValuesMaxed:N0} challenge values maxed. Save to write the file."
+                    : "Everything Unlock All touches was already unlocked.",
+                InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            await ShowMessageAsync("Unlock All failed", ex.Message);
+        }
+    }
+
+    public void RevealInExplorer()
+    {
+        if (Session?.Document.Path is { } path && File.Exists(path))
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+        }
+    }
+
+    // Returns false when the user cancels; true when it is fine to drop the session.
+    public async Task<bool> ConfirmDiscardAsync()
+    {
+        if (Session?.HasChanges != true)
+        {
+            return true;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = $"Save changes to {Session.FileName}?",
+            Content = $"{Ui.Count(Session.ModifiedCount, "value has", "values have")} changed since the file was opened.",
+            PrimaryButtonText = "Save",
+            SecondaryButtonText = "Don't save",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        return await dialog.ShowAsync() switch
+        {
+            ContentDialogResult.Primary => await SaveAsync(),
+            ContentDialogResult.Secondary => true,
+            _ => false
+        };
+    }
+
+    private void RefreshOverviewPage()
+    {
+        if (ContentFrame.Content is OverviewPage overviewPage)
+        {
+            overviewPage.Render();
+        }
+    }
+
+    private async Task<FlatOut4SaveCandidate?> PickCandidateAsync()
+    {
+        var list = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Single,
+            MaxHeight = 460
+        };
+
+        foreach (IGrouping<SaveLocationKind, FlatOut4SaveCandidate> group in Candidates.GroupBy(candidate => candidate.Kind).OrderBy(group => group.Key))
+        {
+            list.Items.Add(new ListViewItem
             {
-                IReadOnlyList<FlatOut4SaveCandidate> candidates = FlatOut4SaveFile.FindSaveCandidates(schema);
-                if (candidates.Count == 0)
+                IsEnabled = false,
+                Content = new TextBlock
                 {
-                    string checkedLocations = string.Join(Environment.NewLine, FlatOut4SaveFile.GetCheckedSaveLocations());
-                    await ShowMessage(
-                        "No FlatOut 4 save found",
-                        $"Checked exact Steam Cloud and offline save locations first, then fallback save-like files in those same folders.{Environment.NewLine}{Environment.NewLine}{checkedLocations}{Environment.NewLine}{Environment.NewLine}Use Open Save to browse manually if your file is somewhere else.");
-                    return;
+                    Text = group.First().KindLabel,
+                    Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+                    Margin = new Thickness(0, 8, 0, 0)
                 }
+            });
 
-                FlatOut4SaveCandidate? selected = candidates.Count == 1
-                    ? candidates[0]
-                    : await ShowSavePicker(candidates);
-
-                if (selected is null)
+            foreach (FlatOut4SaveCandidate candidate in group.OrderByDescending(item => item.LastWriteTimeUtc))
+            {
+                var content = new StackPanel { Spacing = 1, Padding = new Thickness(0, 4, 0, 4) };
+                content.Children.Add(new TextBlock { Text = candidate.Title, FontWeight = FontWeights.SemiBold });
+                content.Children.Add(new TextBlock { Text = candidate.Details, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] });
+                content.Children.Add(new TextBlock
                 {
-                    StatusText.Text = $"Found {candidates.Count:N0} supported save files.";
-                    return;
-                }
-
-                LoadSave(selected.Path);
-                StatusText.Text = candidates.Count == 1
-                    ? $"Loaded detected save from {selected.Source}."
-                    : $"Loaded selected save from {selected.Source}. Found {candidates.Count:N0} supported save files.";
-            }
-            catch (Exception ex)
-            {
-                await ShowMessage("Could not detect Steam save", ex.Message);
+                    Text = candidate.Path,
+                    Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+                    Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+                list.Items.Add(new ListViewItem { Content = content, Tag = candidate });
             }
         }
 
-        private async void OnSaveClicked(object sender, RoutedEventArgs e)
+        list.SelectedIndex = 1;
+        var dialog = new ContentDialog
         {
-            if (document?.Path is null)
-            {
-                return;
-            }
+            Title = "Open a save",
+            Content = list,
+            PrimaryButtonText = "Open",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
 
-            if (!CommitAllDrafts())
-            {
-                await ShowMessage("Some edits are invalid", "Fix the rows with errors before saving.");
-                return;
-            }
+        return await dialog.ShowAsync() == ContentDialogResult.Primary && list.SelectedItem is ListViewItem { Tag: FlatOut4SaveCandidate chosen }
+            ? chosen
+            : null;
+    }
 
-            try
-            {
-                FlatOut4SaveFile.Save(document, document.Path, BackupCheckBox.IsChecked == true);
-                StatusText.Text = $"Saved {document.Path}";
-                ResetDrafts();
-                UpdateChrome();
-            }
-            catch (Exception ex)
-            {
-                await ShowMessage("Save failed", ex.Message);
-            }
+    public void ShowStatus(string message, InfoBarSeverity severity, bool autoHide = false)
+    {
+        statusTimer?.Cancel();
+        StatusBar.Severity = severity;
+        StatusBar.Message = message;
+        StatusBar.IsOpen = true;
+
+        if (!autoHide)
+        {
+            return;
         }
 
-        private async void OnUnlockAllClicked(object sender, RoutedEventArgs e)
+        var cancellation = new CancellationTokenSource();
+        statusTimer = cancellation;
+        _ = HideStatusLaterAsync(cancellation.Token);
+    }
+
+    private async Task HideStatusLaterAsync(CancellationToken token)
+    {
+        try
         {
-            if (document is null)
-            {
-                return;
-            }
+            await Task.Delay(6000, token);
+            StatusBar.IsOpen = false;
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
 
-            if (!CommitAllDrafts())
-            {
-                await ShowMessage("Some edits are invalid", "Fix the rows with errors before using Unlock All.");
-                return;
-            }
-
-            try
-            {
-                FlatOut4UnlockAllResult result = FlatOut4SaveUnlocker.ApplyDebugUnlockAll(document, schema);
-                ResetDrafts();
-                ApplyFilter();
-                UpdateChrome();
-
-                StatusText.Text = result.Changed
-                    ? $"Applied Unlock All: {result.CareerEventsCompleted:N0} career events completed, {result.GarageEntriesUnlocked:N0} garage entries unlocked, {result.ChallengeValuesMaxed:N0} challenge values maxed. Save to write the file."
-                    : "Unlock All was already applied.";
-            }
-            catch (Exception ex)
-            {
-                await ShowMessage("Unlock All failed", ex.Message);
-            }
+    private async Task ShowMessageAsync(string title, string message)
+    {
+        if (App.SnapshotDirectory is not null)
+        {
+            App.SnapshotLog($"{title}: {message}");
+            return;
         }
 
-        private void OnFilterChanged(object sender, object e)
+        var dialog = new ContentDialog
         {
-            ApplyFilter();
+            Title = title,
+            Content = new ScrollViewer
+            {
+                MaxHeight = 420,
+                Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true }
+            },
+            CloseButtonText = "OK",
+            XamlRoot = XamlRoot
+        };
+
+        _ = await dialog.ShowAsync();
+    }
+
+    private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            sender.ItemsSource = Catalog?.Search(sender.Text) ?? [];
+        }
+    }
+
+    private void OnSuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+    }
+
+    private void OnSearchSubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        SearchResult? result = args.ChosenSuggestion as SearchResult ?? Catalog?.Search(args.QueryText).FirstOrDefault();
+        if (result is null)
+        {
+            if (!string.IsNullOrWhiteSpace(args.QueryText))
+            {
+                ShowStatus($"Nothing matches \"{args.QueryText.Trim()}\". Try All fields for raw names.", InfoBarSeverity.Informational, autoHide: true);
+            }
+
+            return;
         }
 
-        private async void LoadSave(string path)
-        {
-            try
-            {
-                document = FlatOut4SaveFile.Load(path, schema);
-                allFields.Clear();
-                allFields.AddRange(schema.Fields.Select(field => new SaveFieldViewModel(field, document.Bytes)));
-                ApplyFilter();
-                ResetDrafts();
-                UpdateChrome();
+        Navigate(result.Page.Key, result.Block is null ? null : result);
+    }
 
-                FilePathText.Text = path;
-                SummaryText.Text = $"Version {BitConverter.ToUInt32(document.Bytes, 4)} | {document.Bytes.Length:N0} bytes | {allFields.Count:N0} editable/derived values";
-                WarningBar.IsOpen = !string.IsNullOrWhiteSpace(document.Warning);
-                WarningBar.Message = document.Warning;
-                StatusText.Text = document.Migrated
-                    ? "Loaded and migrated save in memory. Save to write the migrated version."
-                    : "Loaded save.";
-            }
-            catch (Exception ex)
-            {
-                await ShowMessage("Open failed", ex.Message);
-            }
+    private void OnOpenClicked(object sender, RoutedEventArgs e) => _ = BrowseAsync();
+
+    private void OnChangesPillClicked(object sender, RoutedEventArgs e) => Navigate(EditorCatalog.ChangesKey);
+
+    private void OnFindClicked(object sender, RoutedEventArgs e) => _ = FindSavesAsync(openSingle: false);
+
+    private void OnSaveClicked(object sender, RoutedEventArgs e) => _ = SaveAsync();
+
+    private void OnSaveAsClicked(object sender, RoutedEventArgs e) => _ = SaveAsAsync();
+
+    private void OnRevertClicked(object sender, RoutedEventArgs e) => _ = RevertAsync();
+
+    private void OnUnlockAllClicked(object sender, RoutedEventArgs e) => _ = UnlockAllAsync();
+
+    private void OnUndoClicked(object sender, RoutedEventArgs e) => Undo();
+
+    private void OnRedoClicked(object sender, RoutedEventArgs e) => Redo();
+
+    public void Undo()
+    {
+        if (Session?.Undo() is { } label)
+        {
+            ShowStatus($"Undid {label}.", InfoBarSeverity.Informational, autoHide: true);
         }
+    }
 
-        private void ApplyFilter()
+    public void Redo()
+    {
+        if (Session?.Redo() is { } label)
         {
-            string query = SearchBox.Text?.Trim() ?? string.Empty;
-            string section = SectionBox.SelectedItem as string ?? "All";
-
-            IEnumerable<SaveFieldViewModel> filtered = allFields;
-            if (!string.Equals(section, "All", StringComparison.OrdinalIgnoreCase))
-            {
-                filtered = filtered.Where(field => string.Equals(field.Section, section, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                filtered = filtered.Where(field =>
-                    field.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    field.RawName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    field.Section.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    field.DisplayValue.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    field.LabelValue.Contains(query, StringComparison.OrdinalIgnoreCase));
-            }
-
-            VisibleFields.Clear();
-            foreach (SaveFieldViewModel field in filtered)
-            {
-                VisibleFields.Add(field);
-            }
-
-            FieldCountText.Text = $"{VisibleFields.Count:N0} shown / {allFields.Count:N0} total";
+            ShowStatus($"Redid {label}.", InfoBarSeverity.Informational, autoHide: true);
         }
+    }
 
-        private bool CommitAllDrafts()
+    private void OnReloadClicked(object sender, RoutedEventArgs e)
+    {
+        if (Session?.Document.Path is { } path)
         {
-            bool ok = true;
-            foreach (SaveFieldViewModel field in allFields)
-            {
-                ok &= field.CommitDraft();
-            }
-
-            if (ok)
-            {
-                ResetDrafts();
-            }
-
-            ApplyFilter();
-            return ok;
+            _ = OpenAsync(path, Session.Origin);
         }
+    }
 
-        private void ResetDrafts()
-        {
-            foreach (SaveFieldViewModel field in allFields)
-            {
-                field.ResetDraft();
-            }
-        }
+    private void OnRevealClicked(object sender, RoutedEventArgs e) => RevealInExplorer();
 
-        private void UpdateChrome()
-        {
-            bool hasDocument = document is not null;
-            SaveButton.IsEnabled = hasDocument;
-            UnlockAllButton.IsEnabled = hasDocument;
-            if (!hasDocument)
-            {
-                FieldCountText.Text = $"0 shown / {schema.Fields.Count:N0} total";
-            }
-        }
+    private void OnShortcutsClicked(object sender, RoutedEventArgs e) => _ = ShowShortcutsAsync();
 
-        private async Task ShowMessage(string title, string message)
+    private static readonly (string Keys, string Action)[] Shortcuts =
+    [
+        ("Ctrl+O", "Open a save file"),
+        ("Ctrl+S", "Save"),
+        ("Ctrl+F", "Search the save"),
+        ("Ctrl+Z", "Undo (in a text box: undo typing)"),
+        ("Ctrl+Y or Ctrl+Shift+Z", "Redo"),
+        ("Enter", "Commit a typed value"),
+        ("Esc", "Close a dialog or drop-down")
+    ];
+
+    private async Task ShowShortcutsAsync()
+    {
+        var grid = new Grid { ColumnSpacing = 24, RowSpacing = 10 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (int i = 0; i < Shortcuts.Length; i++)
         {
-            var dialog = new ContentDialog
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var keys = new Border
             {
-                Title = title,
-                Content = message,
-                CloseButtonText = "OK",
-                XamlRoot = XamlRoot
+                Padding = new Thickness(8, 2, 8, 3),
+                CornerRadius = new CornerRadius(4),
+                BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
+                Child = new TextBlock { Text = Shortcuts[i].Keys, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] }
             };
-
-            _ = await dialog.ShowAsync();
+            var action = new TextBlock { Text = Shortcuts[i].Action, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetRow(keys, i);
+            Grid.SetRow(action, i);
+            Grid.SetColumn(action, 1);
+            grid.Children.Add(keys);
+            grid.Children.Add(action);
         }
 
-        private async Task<FlatOut4SaveCandidate?> ShowSavePicker(IReadOnlyList<FlatOut4SaveCandidate> candidates)
+        var dialog = new ContentDialog
         {
-            var list = new ListView
-            {
-                SelectionMode = ListViewSelectionMode.Single,
-                MaxHeight = 420
-            };
+            Title = "Keyboard shortcuts",
+            Content = grid,
+            CloseButtonText = "Close",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+        await dialog.ShowAsync();
+    }
 
-            foreach (FlatOut4SaveCandidate candidate in candidates)
+    private void OnSaveAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        if (Session?.NeedsWrite == true)
+        {
+            _ = SaveAsync();
+        }
+    }
+
+    // Text boxes keep their own Ctrl+Z while focused; everywhere else it steps the save history.
+    private void OnUndoAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        Undo();
+    }
+
+    private void OnRedoAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        Redo();
+    }
+
+    private void OnOpenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        _ = BrowseAsync();
+    }
+
+    private void OnSearchAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        if (SearchBox.IsEnabled)
+        {
+            SearchBox.Focus(FocusState.Keyboard);
+        }
+    }
+
+    // --snapshot <dir>: render every page to PNG (off-screen, never activated) and exit.
+    private async Task RunSnapshotAsync(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        App.SnapshotLog($"snapshot start, session={(Session is not null)}");
+        SaveSession.WriteTrace = App.SnapshotLog;
+        // Mica is not captured by RenderTargetBitmap; paint the theme's base colour instead.
+        RootGrid.Background = new SolidColorBrush(ActualTheme == ElementTheme.Dark
+            ? Windows.UI.Color.FromArgb(255, 0x20, 0x20, 0x20)
+            : Windows.UI.Color.FromArgb(255, 0xF3, 0xF3, 0xF3));
+        await Task.Delay(1200);
+        if (App.SnapshotUnlock && Session is not null)
+        {
+            await UnlockAllAsync();
+            await Task.Delay(600);
+        }
+
+        if (App.SnapshotSelfTest)
+        {
+            await RunSelfTestAsync();
+            Application.Current.Exit();
+            return;
+        }
+
+        expectedChanges = Session?.ModifiedCount ?? 0;
+        await CaptureAsync(Path.Combine(directory, "00-overview.png"));
+
+        if (Session is not null)
+        {
+            if (ContentFrame.Content is OverviewPage)
             {
-                list.Items.Add(CreateCandidateItem(candidate));
+                await CaptureScrolledAsync(directory, "00-overview");
             }
 
-            list.SelectedIndex = 0;
-
-            var content = new StackPanel
+            int index = 1;
+            foreach (EditorCatalog.SectionInfo info in EditorCatalog.Sections.Skip(1))
             {
-                Spacing = 12
-            };
-            content.Children.Add(new TextBlock
-            {
-                Text = "Multiple supported FlatOut 4 saves were found. Choose the one to open.",
-                TextWrapping = TextWrapping.Wrap
-            });
-            content.Children.Add(list);
-
-            var dialog = new ContentDialog
-            {
-                Title = "Choose save file",
-                Content = content,
-                PrimaryButtonText = "Open selected",
-                CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = XamlRoot
-            };
-
-            ContentDialogResult result = await dialog.ShowAsync();
-            if (result != ContentDialogResult.Primary)
-            {
-                return null;
+                Navigate(info.Key);
+                await Task.Delay(1200);
+                string name = $"{index:D2}-{info.Key}";
+                await CaptureAsync(Path.Combine(directory, $"{name}.png"));
+                await CaptureScrolledAsync(directory, name);
+                index++;
             }
 
-            return list.SelectedItem is ListViewItem { Tag: FlatOut4SaveCandidate selectedCandidate }
-                ? selectedCandidate
-                : candidates[0];
+            if (App.SnapshotSearch is { } query && Catalog?.Search(query).FirstOrDefault() is { } result)
+            {
+                Navigate(result.Page.Key, result);
+                await Task.Delay(1800);
+                await CaptureAsync(Path.Combine(directory, "90-search.png"));
+            }
         }
 
-        private static ListViewItem CreateCandidateItem(FlatOut4SaveCandidate candidate)
+        Application.Current.Exit();
+    }
+
+    private async Task CaptureScrolledAsync(string directory, string name)
+    {
+        ScrollViewer? scroller = ContentFrame.Content switch
         {
-            var content = new StackPanel
-            {
-                Spacing = 2
-            };
-            content.Children.Add(new TextBlock
-            {
-                Text = candidate.Title,
-                FontWeight = FontWeights.SemiBold,
-                TextWrapping = TextWrapping.Wrap
-            });
-            content.Children.Add(new TextBlock
-            {
-                Text = candidate.Details,
-                TextWrapping = TextWrapping.Wrap
-            });
-            content.Children.Add(new TextBlock
-            {
-                Text = candidate.Path,
-                TextWrapping = TextWrapping.Wrap
-            });
+            SectionPage section => section.Scroller,
+            _ => FindScroller(ContentFrame.Content as DependencyObject)
+        };
 
-            return new ListViewItem
-            {
-                Content = content,
-                Tag = candidate
-            };
-        }
-
-        private async Task<string?> ShowOpenFileDialogAsync()
+        if (scroller is null)
         {
-            var picker = new FileOpenPicker
-            {
-                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-                ViewMode = PickerViewMode.List
-            };
-
-            picker.FileTypeFilter.Add("*");
-            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
-
-            StorageFile? file = await picker.PickSingleFileAsync();
-            return file?.Path;
+            return;
         }
+
+        for (int step = 1; step <= App.SnapshotScrollSteps; step++)
+        {
+            double offset = scroller.ViewportHeight * 0.85 * step;
+            if (offset > scroller.ScrollableHeight + (scroller.ViewportHeight * 0.85))
+            {
+                break;
+            }
+
+            scroller.ChangeView(null, Math.Min(offset, scroller.ScrollableHeight), null, true);
+            await Task.Delay(700);
+            await CaptureAsync(Path.Combine(directory, $"{name}-{step}.png"));
+            if (offset >= scroller.ScrollableHeight)
+            {
+                break;
+            }
+        }
+    }
+
+    private static ScrollViewer? FindScroller(DependencyObject? root)
+    {
+        if (root is null)
+        {
+            return null;
+        }
+
+        if (root is ScrollViewer scroller)
+        {
+            return scroller;
+        }
+
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            if (FindScroller(VisualTreeHelper.GetChild(root, i)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task CaptureAsync(string path, UIElement? element = null)
+    {
+        App.SnapshotLog($"capture {Path.GetFileName(path)} root={RootGrid.ActualWidth}x{RootGrid.ActualHeight}");
+        if (element is null && Session is not null && Session.ModifiedCount != expectedChanges)
+        {
+            // Snapshot mode makes no edits after the optional Unlock All, so any change here is a binding writing back.
+            foreach (SaveFieldViewModel field in Session.Fields.Where(field => field.IsModified))
+            {
+                App.SnapshotLog($"  UNEXPECTED CHANGE {field.RawName} = {field.DisplayValue}");
+            }
+        }
+        var bitmap = new RenderTargetBitmap();
+        await bitmap.RenderAsync(element ?? RootGrid);
+        IBuffer pixels = await bitmap.GetPixelsAsync();
+
+        StorageFolder folder = await StorageFolder.GetFolderFromPathAsync(Path.GetDirectoryName(path)!);
+        StorageFile file = await folder.CreateFileAsync(Path.GetFileName(path), CreationCollisionOption.ReplaceExisting);
+        using IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.ReadWrite);
+        BitmapEncoder encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetPixelData(
+            BitmapPixelFormat.Bgra8,
+            BitmapAlphaMode.Premultiplied,
+            (uint)bitmap.PixelWidth,
+            (uint)bitmap.PixelHeight,
+            96,
+            96,
+            pixels.ToArray());
+        await encoder.FlushAsync();
     }
 }

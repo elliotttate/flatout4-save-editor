@@ -16,6 +16,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>FlatOut4SaveEditor</RootNamespace>
 
+        <!-- Carry the Windows App SDK runtime with every build so Debug runs need no matching installed runtime. -->
+        <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
         <!-- App Options -->
         <UseRidGraph>true</UseRidGraph>
         <Platforms>x86;x64;ARM64</Platforms>

@@ -19,62 +19,10 @@ public static class FlatOut4SaveUnlocker
     private const int GarageStateDlcOwned = 5;
     private const int GarageStateCount = 6;
     private const int ScoreObjectiveGold = 2;
-    private const uint CarTypeNone = 39;
+    private const uint CarTypeNone = (uint)FlatOut4GameData.CarTypeNone;
 
-    private static readonly string[] CurrentCareerEventNames =
-    [
-        "DerbyLevel0Cup1",
-        "DerbyLevel0Cup2",
-        "DerbyTimeTrial0Event1",
-        "DerbySurvivor0Event2",
-        "DerbyLevel1Cup1",
-        "DerbyLevel1Cup2",
-        "DerbyLevel1Cup3",
-        "DerbyTimeTrial1Event1",
-        "DerbySurvivor1Event2",
-        "DerbySurvivor1Event3",
-        "DerbyLevel2Cup1",
-        "DerbyLevel2Cup2",
-        "DerbyLevel2Cup3",
-        "DerbySurvivor2Event1",
-        "DerbyTimeTrial2Event2",
-        "DerbyTimeTrial2Event3",
-        "ClassicLevel0Cup1",
-        "ClassicLevel0Cup2",
-        "ClassicLevel0Cup3",
-        "ClassicSurvivor0Event1",
-        "ClassicTimeTrial0Event2",
-        "ClassicSurvivor0Event3",
-        "ClassicLevel1Cup1",
-        "ClassicLevel1Cup2",
-        "ClassicLevel1Cup3",
-        "ClassicTimeTrial1Event1",
-        "ClassicSurvivor1Event2",
-        "ClassicTimeTrial1Event3",
-        "ClassicLevel2Cup1",
-        "ClassicLevel2Cup2",
-        "ClassicSurvivor2Event1",
-        "ClassicTimeTrial2Event2",
-        "AllstarsLevel0Cup1",
-        "AllstarsLevel0Cup2",
-        "AllstarsSurvivor0Event1",
-        "AllstarsTimeTrial0Event2",
-        "AllstarsLevel1Cup1",
-        "AllstarsLevel1Cup2",
-        "AllstarsLevel1Cup3",
-        "AllstarsSurvivor1Event1",
-        "AllstarsSurvivor1Event2",
-        "AllstarsTimeTrial1Event3",
-        "AllstarsLevel2Cup1",
-        "AllstarsLevel2Cup2",
-        "AllstarsLevel2Cup3",
-        "AllstarsTimeTrial2Event1",
-        "AllstarsSurvivor2Event2",
-        "AllstarsTimeTrial2Event3"
-    ];
-
-    private static readonly uint[] CurrentCareerEventIds = CurrentCareerEventNames
-        .Select(FnvHashUpperInvariant)
+    private static readonly uint[] CurrentCareerEventIds = FlatOut4GameData.CareerEvents
+        .Select(careerEvent => careerEvent.Id)
         .ToArray();
 
     public static FlatOut4UnlockAllResult ApplyDebugUnlockAll(FlatOut4SaveDocument document, FlatOut4SaveSchema schema)
@@ -225,18 +173,6 @@ public static class FlatOut4SaveUnlocker
 
     private static string EventRewardField(int reward, string member) =>
         $"m_oCareerData.m_vEventRewards[{reward}].{member}";
-
-    private static uint FnvHashUpperInvariant(string value)
-    {
-        uint hash = 0;
-        foreach (char c in value.ToUpperInvariant())
-        {
-            hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-            hash ^= (uint)c;
-        }
-
-        return hash;
-    }
 
     private sealed class SaveBytesEditor
     {

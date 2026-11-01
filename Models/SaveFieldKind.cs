@@ -8,5 +8,9 @@ public enum SaveFieldKind
     UInt32,
     Float32,
     Footer,
-    Bit
+    Bit,
+
+    // A tagged m_aOther extension toggle: the value slot only counts while the
+    // magic slot (AuxOffset) holds "FXT1"; untagged saves read as ON.
+    ExtensionOnOff
 }

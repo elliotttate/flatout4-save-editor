@@ -55,7 +55,7 @@ public static partial class SaveFieldNameFormatter
         ["m_uNbLost"] = "Losses",
         ["m_vRecentTrophies"] = "Recent trophy",
         ["m_uSuntsMedals"] = "Stunt medals",
-        ["m_aOther"] = "Extra config",
+        ["m_aOther"] = "Extension slot",
         ["m_vPadding"] = "Reserved padding"
     };
 
@@ -178,6 +178,23 @@ public static partial class SaveFieldNameFormatter
         return labels.Count == 0 ? Humanize(rawName) : string.Join(" > ", labels);
     }
 
+    public static string FormatLast(string rawName)
+    {
+        string[] parts = rawName.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        for (int i = parts.Length - 1; i >= 0; i--)
+        {
+            string label = FormatSegment(parts[i]);
+            if (!string.IsNullOrWhiteSpace(label))
+            {
+                return label;
+            }
+        }
+
+        return Humanize(rawName);
+    }
+
+    public static string HumanizeIdentifier(string value) => Humanize(value);
+
     private static string FormatSegment(string segment)
     {
         int bracketStart = segment.IndexOf('[');
@@ -225,9 +242,12 @@ public static partial class SaveFieldNameFormatter
             return label;
         }
 
-        return indices.Length == 1 && int.TryParse(indices[0], out int slot)
-            ? $"{label} slot {slot}"
-            : $"{label}: {string.Join(" - ", indices.Select(Humanize))}";
+        if (indices.Length == 1 && int.TryParse(indices[0], out int slot))
+        {
+            return label.EndsWith(" slot", StringComparison.Ordinal) ? $"{label} {slot}" : $"{label} slot {slot}";
+        }
+
+        return $"{label}: {string.Join(" - ", indices.Select(Humanize))}";
     }
 
     private static string Humanize(string value)
