@@ -118,7 +118,7 @@ public sealed class OverviewModel : ObservableObject
         {
             try
             {
-                return File.Exists(FilePath) ? $"Last written {File.GetLastWriteTime(FilePath):g}" : string.Empty;
+                return File.Exists(FilePath) ? $"Last written {Services.RelativeTime.Describe(File.GetLastWriteTime(FilePath))}" : string.Empty;
             }
             catch
             {

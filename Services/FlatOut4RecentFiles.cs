@@ -8,21 +8,7 @@ public sealed record RecentSave(string Path, DateTime OpenedUtc)
 
     public string Folder => PathDisplay.CompactFolder(Path);
 
-    public string OpenedText
-    {
-        get
-        {
-            DateTime local = OpenedUtc.ToLocalTime();
-            int days = (DateTime.Now.Date - local.Date).Days;
-            return days switch
-            {
-                <= 0 => $"Opened today at {local:t}",
-                1 => $"Opened yesterday at {local:t}",
-                < 7 => $"Opened {days} days ago",
-                _ => $"Opened {local:d}"
-            };
-        }
-    }
+    public string OpenedText => $"Opened {RelativeTime.Describe(OpenedUtc.ToLocalTime())}";
 }
 
 // The last few saves opened or written, newest first, in %LocalAppData%\FlatOut4SaveEditor\recent.json.

@@ -27,7 +27,7 @@ public sealed record FlatOut4SaveCandidate(
 
     public string Title => SteamUserId is null
         ? Source
-        : $"{Source} - Steam user {SteamUserId}";
+        : $"{Source} · Steam user {SteamUserId}";
 
     public string VersionLabel => NeedsRecovery
         ? $"V{Version} (needs recovery)"
@@ -35,7 +35,7 @@ public sealed record FlatOut4SaveCandidate(
             ? $"V{Version} (RC10-RC17)"
             : $"V{Version}";
 
-    public string Details => $"{VersionLabel} | {Size:N0} bytes | Modified {LastWriteTimeLocal:g}";
+    public string Details => $"{VersionLabel} · {Size:N0} bytes · Modified {RelativeTime.Describe(LastWriteTimeLocal)}";
 
     public string KindLabel => Kind switch
     {
