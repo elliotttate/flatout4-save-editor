@@ -1312,12 +1312,14 @@ public sealed class EditorCatalog
             }
         }
 
+        // Same stance as Save health: values no build reads yet are usually leftover memory, but a
+        // newer build may have stored settings there, so they are kept unless the user clears them.
         string leftoverText = leftovers == 0
             ? "The unused slots (3-1023) are clean."
-            : $"{leftovers:N0} unused slots (3-1023) hold leftover bytes. Clear them before a future build starts reading new tagged values.";
+            : $"{leftovers:N0} unused slots (3-1023) hold values no build reads yet, usually leftover memory. They are saved back unchanged; Clear unknown slots zeroes them if no newer build has used this profile.";
         extensionNote.Message = tagged
             ? $"Tagged (FXT1): the game trusts the values below. {leftoverText}"
             : $"Untagged: the game ignores the stored telemetry value and treats telemetry as ON. Changing the telemetry toggle tags the profile. {leftoverText}";
-        extensionNote.Severity = leftovers > 0 ? "Warning" : tagged ? "Success" : "Informational";
+        extensionNote.Severity = tagged && leftovers == 0 ? "Success" : "Informational";
     }
 }
