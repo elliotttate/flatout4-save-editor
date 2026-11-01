@@ -29,6 +29,12 @@ public sealed partial class OverviewPage : Page
         Render();
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        Ui.ReleaseBindings(this);
+    }
+
     public void Render()
     {
         OverviewModel? overview = shell?.Overview;

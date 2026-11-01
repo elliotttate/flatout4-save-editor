@@ -24,6 +24,24 @@ public sealed partial class MainPage
         SaveSession session = Session;
         App.SnapshotLog("SELFTEST start");
 
+        // A page that has been left must stop listening to the save's values; otherwise every later
+        // refresh keeps pushing updates into its detached cells until garbage collection runs.
+        TableBlock garageCars = Catalog.Page("garage")!.Blocks.OfType<TableBlock>().First(table => table.Title == "Cars");
+        SaveFieldViewModel probe = garageCars.AllRows.First(row => !row.IsEmpty).Cells[0].Field!;
+        Navigate("options");
+        await Task.Delay(500);
+        int listenersBefore = Listeners(probe);
+        for (int visit = 0; visit < 3; visit++)
+        {
+            Navigate("garage");
+            await Task.Delay(700);
+            Navigate("options");
+            await Task.Delay(500);
+        }
+
+        int listenersAfter = Listeners(probe);
+        Expect(listenersAfter <= listenersBefore, $"leaving a page releases its bindings ({listenersBefore} listeners on a garage cell before, {listenersAfter} after three visits)");
+
         // Toggle (two-way bound switch on a settings card).
         SaveFieldViewModel invertX = session.Field("m_oGameOptions.m_oGameplayOptions.m_uCamXInversed");
         bool invertBefore = invertX.BoolValue;
@@ -173,6 +191,42 @@ public sealed partial class MainPage
 
         await shortcuts;
 
+        // The real Revert path: confirm in the dialog, which closes right before every value refreshes.
+        // Repeated because a refresh racing the closing dialog once failed inside ToolTipService.
+        SaveFieldViewModel credits = session.Field("m_oCareerData.m_iCredits");
+        int revertFailures = 0;
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            Navigate(attempt % 2 == 0 ? "garage" : "controls");
+            await Task.Delay(250);
+            credits.WriteInteger(credits.ReadInteger() + 1);
+            Task revert = RevertAsync();
+            await Task.Delay(attempt % 3 * 150 + 200);
+            Button? confirm = VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot)
+                .Select(popup => popup.Child)
+                .OfType<ContentDialog>()
+                .SelectMany(FindAll<Button>)
+                .FirstOrDefault(button => button.Content as string == "Revert");
+            if (confirm is null)
+            {
+                Expect(false, "the Revert dialog shows a Revert button");
+                break;
+            }
+
+            new ButtonAutomationPeer(confirm).Invoke();
+            try
+            {
+                await revert;
+            }
+            catch (Exception ex)
+            {
+                revertFailures++;
+                App.SnapshotLog($"SELFTEST revert attempt {attempt} threw {ex.GetType().Name} 0x{ex.HResult:X8}: {ex.StackTrace?.Split('\n').FirstOrDefault(line => line.Contains("FieldTemplates") || line.Contains("SectionPage"))?.Trim()}");
+            }
+        }
+
+        Expect(revertFailures == 0 && session.ModifiedCount == 0, $"Revert through its dialog works every time ({revertFailures} of 12 failed)");
+
         // Revert puts every editor back, and scrolling long tables afterwards writes nothing.
         session.Revert();
         Expect(session.ModifiedCount == 0, "Revert clears every change");
@@ -196,6 +250,11 @@ public sealed partial class MainPage
         Expect(session.ModifiedCount == 0, $"scrolling every long page after Revert writes nothing ({session.ModifiedCount} changes)");
         App.SnapshotLog(selfTestFailures == 0 ? "SELFTEST ALL PASSED" : $"SELFTEST {selfTestFailures} FAILED");
     }
+
+    // PropertyChanged subscribers on a view model (bindings, rows, catalog); diagnostics only.
+    private static int Listeners(ObservableObject source) =>
+        (typeof(ObservableObject).GetField(nameof(ObservableObject.PropertyChanged), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(source) as Delegate)?
+            .GetInvocationList().Length ?? 0;
 
     private void Expect(bool condition, string what)
     {

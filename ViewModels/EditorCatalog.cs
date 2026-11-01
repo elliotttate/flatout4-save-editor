@@ -41,6 +41,26 @@ public sealed class EditorCatalog
 
     private readonly SaveSession session;
     private readonly List<PageViewModel> pages = [];
+
+    // Pages without blocks that search should still find, with the words people look for them by.
+    private static readonly IReadOnlyDictionary<string, string> PageKeywords = new Dictionary<string, string>
+    {
+        [OverviewKey] = "summary dashboard home start file",
+        [ChangesKey] = "unsaved edits diff compare revert undo history",
+        [HealthKey] = "repair fix damaged broken corrupt recovery recovered problems errors"
+    };
+
+    private static readonly IReadOnlyList<PageViewModel> SearchablePages = Sections
+        .Where(section => PageKeywords.ContainsKey(section.Key))
+        .Select(section => new PageViewModel
+        {
+            Key = section.Key,
+            Title = section.Title,
+            Glyph = section.Glyph,
+            Category = section.Category,
+            Subtitle = $"{section.Subtitle} {PageKeywords[section.Key]}"
+        })
+        .ToArray();
     private readonly List<TableRowViewModel> dynamicRows = [];
     private readonly List<CareerEventsBlock> careerBlocks = [];
     private readonly List<TrophyGridBlock> trophyBlocks = [];
@@ -212,6 +232,11 @@ public sealed class EditorCatalog
         }
 
         var results = new List<SearchResult>();
+        foreach (PageViewModel page in SearchablePages)
+        {
+            AddIfMatch(results, query, page.Title, "Section", page.Glyph, page, null, null, page.Subtitle, bonus: 3);
+        }
+
         foreach (PageViewModel page in pages)
         {
             AddIfMatch(results, query, page.Title, "Section", page.Glyph, page, null, null, page.Subtitle, bonus: 3);

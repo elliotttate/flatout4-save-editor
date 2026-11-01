@@ -36,6 +36,8 @@ public sealed partial class ChangesPage : Page
         {
             session.DataChanged -= OnDataChanged;
         }
+
+        Ui.ReleaseBindings(this);
     }
 
     // Reverting from this page changes the data; coalesce bursts (Revert all) into one rebuild.

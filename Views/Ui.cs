@@ -3,6 +3,7 @@ using FlatOut4SaveEditor.Models;
 using FlatOut4SaveEditor.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
@@ -24,6 +25,26 @@ public static class Ui
 
     public static void EndInteraction(ComboBox combo) =>
         combo.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => InteractingCombos.Remove(combo));
+
+    // Stops every x:Bind template under root from listening to its view model. The view models
+    // outlive the pages, and a template binding only lets go of them once the element is garbage
+    // collected, so a page that was left would keep receiving every refresh (and failing inside
+    // ToolTipService/DataContext on half-torn-down cells). Pages call this when navigated away from.
+    public static void ReleaseBindings(DependencyObject root)
+    {
+        var pending = new Stack<DependencyObject>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            DependencyObject element = pending.Pop();
+            XamlBindingHelper.GetDataTemplateComponent(element)?.Recycle();
+            int count = VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < count; i++)
+            {
+                pending.Push(VisualTreeHelper.GetChild(element, i));
+            }
+        }
+    }
 
     public static string OnOff(bool value) => value ? "On" : "Off";
 

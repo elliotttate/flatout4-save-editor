@@ -79,7 +79,10 @@
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
             IsTitleBarAutoPaddingEnabled="False"
+            DisplayModeChanged="OnNavDisplayModeChanged"
             ItemInvoked="OnNavItemInvoked"
+            PaneClosing="OnNavPaneClosing"
+            PaneOpening="OnNavPaneOpening"
             CompactModeThresholdWidth="0"
             ExpandedModeThresholdWidth="1240"
             OpenPaneLength="264"
@@ -120,7 +123,10 @@
             </NavigationView.AutoSuggestBox>
 
             <NavigationView.PaneFooter>
-                <StackPanel Padding="16,8,16,12" Spacing="4">
+                <StackPanel
+                    x:Name="BackupFooter"
+                    Padding="16,8,16,12"
+                    Spacing="4">
                     <ToggleSwitch
                         x:Name="BackupToggle"
                         Header="Back up before saving"
@@ -139,22 +145,29 @@
                 <Grid
                     x:Name="Toolbar"
                     Padding="40,16,40,8"
-                    ColumnSpacing="8">
+                    ColumnSpacing="8"
+                    SizeChanged="OnToolbarSizeChanged">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                    <StackPanel
+                        x:Name="ToolbarStart"
+                        Orientation="Horizontal"
+                        Spacing="6">
                         <Button Click="OnOpenClicked" ToolTipService.ToolTip="Open a save file (Ctrl+O)">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon FontSize="14" Glyph="&#xE8E5;" />
                                 <TextBlock Text="Open" />
                             </StackPanel>
                         </Button>
-                        <Button Click="OnFindClicked" ToolTipService.ToolTip="Look for saves in Steam Cloud and the usual folders">
+                        <Button
+                            AutomationProperties.Name="Find saves"
+                            Click="OnFindClicked"
+                            ToolTipService.ToolTip="Look for saves in Steam Cloud and the usual folders">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon FontSize="14" Glyph="&#xE721;" />
-                                <TextBlock Text="Find saves" />
+                                <TextBlock x:Name="FindSavesLabel" Text="Find saves" />
                             </StackPanel>
                         </Button>
                         <AppBarSeparator />
@@ -190,21 +203,23 @@
                             ToolTipService.ToolTip="Gold in every career event, every garage item unlocked, challenges maxed">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon FontSize="14" Glyph="&#xE785;" />
-                                <TextBlock Text="Unlock all" />
+                                <TextBlock x:Name="UnlockAllLabel" Text="Unlock all" />
                             </StackPanel>
                         </Button>
                         <Button
                             x:Name="RevertButton"
+                            AutomationProperties.Name="Revert"
                             Click="OnRevertClicked"
                             IsEnabled="False"
                             ToolTipService.ToolTip="Put every value back to what is in the file">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon FontSize="14" Glyph="&#xE777;" />
-                                <TextBlock Text="Revert" />
+                                <TextBlock x:Name="RevertLabel" Text="Revert" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
                     <StackPanel
+                        x:Name="ToolbarEnd"
                         Grid.Column="1"
                         Orientation="Horizontal"
                         Spacing="10">
@@ -252,7 +267,7 @@
                             ToolTipService.ToolTip="More actions">
                             <FontIcon FontSize="14" Glyph="&#xE712;" />
                             <DropDownButton.Flyout>
-                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyout Opening="OnMoreOpening" Placement="BottomEdgeAlignedRight">
                                     <MenuFlyoutItem
                                         x:Name="SaveAsItem"
                                         Click="OnSaveAsClicked"
@@ -281,6 +296,10 @@
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                     <MenuFlyoutSeparator />
+                                    <ToggleMenuFlyoutItem
+                                        x:Name="BackupMenuItem"
+                                        Click="OnBackupMenuClicked"
+                                        Text="Back up before saving" />
                                     <MenuFlyoutItem Click="OnShortcutsClicked" Text="Keyboard shortcuts">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE765;" />

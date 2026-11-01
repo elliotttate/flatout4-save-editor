@@ -26,6 +26,12 @@ public sealed partial class AllFieldsPage : Page
         ApplyFilter();
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        Ui.ReleaseBindings(this);
+    }
+
     private async void OnFilterChanged(object sender, object e)
     {
         // Debounce typing: the list holds thousands of rows.

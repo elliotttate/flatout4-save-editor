@@ -46,7 +46,17 @@ namespace FlatOut4SaveEditor
         public App()
         {
             this.InitializeComponent();
-            UnhandledException += (_, e) => WriteCrashLog(e.Exception);
+            UnhandledException += (_, e) =>
+            {
+                WriteCrashLog(e.Exception);
+                if (SnapshotDirectory is not null)
+                {
+                    // Unattended run: end here, before WinUI's fail-fast raises a System Error box on
+                    // the user's screen (SetErrorMode does not cover that path).
+                    SnapshotLog($"CRASH {e.Exception.GetType().Name} 0x{e.Exception.HResult:X8}; see {CrashLogPath}");
+                    System.Diagnostics.Process.GetCurrentProcess().Kill();
+                }
+            };
         }
 
         public static string CrashLogPath => Path.Combine(Path.GetTempPath(), "FlatOut4SaveEditor-crash.log");

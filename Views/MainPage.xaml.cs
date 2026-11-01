@@ -249,7 +249,12 @@ public sealed partial class MainPage : Page
         }
 
         int changes = Session.ModifiedCount;
-        ChangesPill.Visibility = Session.NeedsWrite ? Visibility.Visible : Visibility.Collapsed;
+        Visibility pill = Session.NeedsWrite ? Visibility.Visible : Visibility.Collapsed;
+        if (ChangesPill.Visibility != pill)
+        {
+            ChangesPill.Visibility = pill;
+            DispatcherQueue.TryEnqueue(UpdateToolbarDensity);
+        }
         ChangesText.Text = changes > 0
             ? (changes == 1 ? "1 unsaved change" : $"{changes:N0} unsaved changes")
             : "Converted, not saved yet";
@@ -292,11 +297,15 @@ public sealed partial class MainPage : Page
                 navBadges[key] = badge;
             }
 
-            badge.Value = count;
+            SetBadgeCount(badge, count);
             item.InfoBadge = badge;
             ToolTipService.SetToolTip(item, $"{subtitle}\n{Ui.Count(count, "unsaved change", "unsaved changes")}");
         }
     }
+
+    // In the compact pane a count past 99 would cover the icon; a dot plus the tooltip says enough there.
+    private void SetBadgeCount(InfoBadge badge, int count) =>
+        badge.Value = count > 99 && Nav.DisplayMode != NavigationViewDisplayMode.Expanded ? -1 : count;
 
     private InfoBadge HealthBadge(int issues)
     {
@@ -311,7 +320,7 @@ public sealed partial class MainPage : Page
             navBadges[EditorCatalog.HealthKey] = badge;
         }
 
-        badge.Value = issues;
+        SetBadgeCount(badge, issues);
         return badge;
     }
 
@@ -716,6 +725,48 @@ public sealed partial class MainPage : Page
     private void OnRevealClicked(object sender, RoutedEventArgs e) => RevealInExplorer();
 
     private void OnShortcutsClicked(object sender, RoutedEventArgs e) => _ = ShowShortcutsAsync();
+
+    private void OnMoreOpening(object? sender, object e) => BackupMenuItem.IsChecked = BackupToggle.IsOn;
+
+    private void OnBackupMenuClicked(object sender, RoutedEventArgs e) => BackupToggle.IsOn = BackupMenuItem.IsChecked;
+
+    // The backup switch in the pane footer only fits while the pane is open; the More menu has it too.
+    private void OnNavPaneOpening(NavigationView sender, object args) => BackupFooter.Visibility = Visibility.Visible;
+
+    private void OnNavPaneClosing(NavigationView sender, NavigationViewPaneClosingEventArgs args) => BackupFooter.Visibility = Visibility.Collapsed;
+
+    private void OnNavDisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
+    {
+        BackupFooter.Visibility = sender.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
+        UpdateBadges();
+    }
+
+    private void OnToolbarSizeChanged(object sender, SizeChangedEventArgs e) => UpdateToolbarDensity();
+
+    // Narrow windows drop the labels of the secondary buttons (icons and tooltips stay) rather
+    // than letting the left group slide under the unsaved-changes pill.
+    private void UpdateToolbarDensity()
+    {
+        if (Toolbar.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        SetToolbarLabels(true);
+        var unbounded = new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity);
+        ToolbarStart.Measure(unbounded);
+        ToolbarEnd.Measure(unbounded);
+        double available = Toolbar.ActualWidth - Toolbar.Padding.Left - Toolbar.Padding.Right - Toolbar.ColumnSpacing;
+        SetToolbarLabels(ToolbarStart.DesiredSize.Width + ToolbarEnd.DesiredSize.Width <= available);
+    }
+
+    private void SetToolbarLabels(bool visible)
+    {
+        Visibility visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        FindSavesLabel.Visibility = visibility;
+        UnlockAllLabel.Visibility = visibility;
+        RevertLabel.Visibility = visibility;
+    }
 
     private static readonly (string Keys, string Action)[] Shortcuts =
     [

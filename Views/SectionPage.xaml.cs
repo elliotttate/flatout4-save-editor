@@ -38,6 +38,12 @@ public sealed partial class SectionPage : Page
         }
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        Ui.ReleaseBindings(this);
+    }
+
     private void BuildJumpStrip()
     {
         jumpTargets = ViewModel?.Blocks

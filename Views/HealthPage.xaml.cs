@@ -41,6 +41,8 @@ public sealed partial class HealthPage : Page
         {
             session.DataChanged -= OnDataChanged;
         }
+
+        Ui.ReleaseBindings(this);
     }
 
     // Repairs, edits and undo all change what is healthy; coalesce bursts into one rebuild.
