@@ -26,7 +26,7 @@ The editor reads what it can instead of refusing a file:
 - Local saves under `Documents\My Games\Flatout VR` and the other usual folders.
 - Developer test slots (`My Games\Flatout VR Test <slot>\DEBUGSave<slot>`) from non-Retail builds.
 
-The start page lists the saves you opened recently, then everything it finds, grouped by location, newest first.
+The start page lists the saves you opened recently, then everything it finds, grouped by location, newest first. The window reopens where you left it (size, position, maximized), or centred on the main screen if that spot is no longer on a connected display.
 
 ## Editing
 

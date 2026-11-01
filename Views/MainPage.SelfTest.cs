@@ -232,6 +232,27 @@ public sealed partial class MainPage
 
         Expect(revertFailures == 0 && session.ModifiedCount == 0, $"Revert straight after changing pages works every time ({revertFailures} of {revertAttempts} failed)");
 
+        // A remembered window spot is only used while its title bar is on a display.
+        var primary = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
+        bool centreOk = WindowPlacement.IsOnADisplay(new Windows.Graphics.RectInt32(primary.X + 100, primary.Y + 100, 1200, 800));
+        bool offLeft = WindowPlacement.IsOnADisplay(new Windows.Graphics.RectInt32(-20000, 120, 1200, 800));
+        bool belowAll = WindowPlacement.IsOnADisplay(new Windows.Graphics.RectInt32(primary.X + 100, 30000, 1200, 800));
+        bool sliver = WindowPlacement.IsOnADisplay(new Windows.Graphics.RectInt32(primary.X - 1150, primary.Y + 100, 1200, 800));
+        Expect(centreOk && !offLeft && !belowAll && !sliver,
+            $"remembered window spots off every display are not restored (on screen {centreOk}, far left {offLeft}, far below {belowAll}, 50 px sliver {sliver})");
+
+        // Save and load round-trip, using this (off-screen) window and a scratch file.
+        if (App.SnapshotDirectory is { } placementDirectory)
+        {
+            WindowPlacement.StorePathOverride = Path.Combine(placementDirectory, "window.json");
+            Microsoft.UI.Windowing.AppWindow testWindow = App.MainWindow!.AppWindow;
+            WindowPlacement.Save(testWindow);
+            bool loaded = WindowPlacement.TryLoad(out Windows.Graphics.RectInt32 savedBounds, out bool savedMaximized);
+            bool restored = WindowPlacement.TryRestore(testWindow);
+            Expect(loaded && savedBounds.X == testWindow.Position.X && savedBounds.Width == testWindow.Size.Width && !savedMaximized && !restored,
+                $"window placement saves and loads ({savedBounds.X},{savedBounds.Y} {savedBounds.Width}x{savedBounds.Height}) and an off-screen one is not restored");
+        }
+
         // Revert puts every editor back, and scrolling long tables afterwards writes nothing.
         session.Revert();
         Expect(session.ModifiedCount == 0, "Revert clears every change");

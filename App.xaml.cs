@@ -117,6 +117,17 @@ namespace FlatOut4SaveEditor
             appWindow.Closing += OnWindowClosing;
             ApplyTitleBarTheme(rootFrame.ActualTheme);
 
+            if (SnapshotDirectory is null)
+            {
+                // Reopen where the user left it, unless that spot is no longer on any display.
+                if (!sizeRequested)
+                {
+                    _ = Views.WindowPlacement.TryRestore(appWindow);
+                }
+
+                Views.WindowPlacement.Track(appWindow);
+            }
+
             if (SnapshotDirectory is not null)
             {
                 // A crash in an unattended run must not leave Windows error boxes on the user's
@@ -174,6 +185,9 @@ namespace FlatOut4SaveEditor
         [System.Runtime.InteropServices.DllImport("kernel32.dll")]
         private static extern int WerSetFlags(uint flags);
 
+        // --size given: use it instead of the remembered window placement.
+        private static bool sizeRequested;
+
         private static ElementTheme ParseArguments(string[] args, out SizeInt32 size)
         {
             ElementTheme theme = ElementTheme.Default;
@@ -219,6 +233,7 @@ namespace FlatOut4SaveEditor
                         if (parts.Length == 2 && int.TryParse(parts[0], out int width) && int.TryParse(parts[1], out int height))
                         {
                             size = new SizeInt32(width, height);
+                            sizeRequested = true;
                         }
 
                         i++;
@@ -240,6 +255,11 @@ namespace FlatOut4SaveEditor
         {
             if (closeConfirmed || MainWindow.Content is not Frame { Content: MainPage page } || page.Session?.HasChanges != true)
             {
+                if (SnapshotDirectory is null)
+                {
+                    Views.WindowPlacement.Save(sender);
+                }
+
                 return;
             }
 
