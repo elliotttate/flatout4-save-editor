@@ -55,6 +55,20 @@ public sealed partial class MainPage
             Expect(itemBottom <= footerTop + 1, $"the open section's pane item is in view (bottom {itemBottom:0}, footer top {footerTop:0})");
         }
 
+        // A value no section shows is still found by search, and opens All fields filtered to it.
+        SearchResult? versionHit = Catalog.Search("save version").FirstOrDefault();
+        if (versionHit is not null)
+        {
+            Navigate(versionHit.Page.Key, versionHit);
+        }
+
+        await Task.Delay(800);
+        AllFieldsPage? allFieldsPage = ContentFrame.Content as AllFieldsPage;
+        string allFilter = allFieldsPage is null ? string.Empty : FindAll<TextBox>(allFieldsPage).FirstOrDefault()?.Text ?? string.Empty;
+        string allCount = allFieldsPage is null ? string.Empty : FindAll<TextBlock>(allFieldsPage).FirstOrDefault(block => block.Text.Contains(" of ", StringComparison.Ordinal) && block.Text.EndsWith(" fields", StringComparison.Ordinal))?.Text ?? string.Empty;
+        Expect(versionHit is { Page.Key: EditorCatalog.AllFieldsKey, Target: SaveFieldViewModel versionField } && allFilter == versionField.RawName && allCount.StartsWith("1 of", StringComparison.Ordinal),
+            $"search finds the save version and opens All fields on it ({versionHit?.Title} -> filter \"{allFilter}\", {allCount})");
+
         // Section tooltips name the section when the pane shows icons only.
         string garageTip = ToolTipService.GetToolTip(navItems["garage"]) is ToolTip { Content: string tipText } ? tipText : string.Empty;
         bool compactPane = Nav.DisplayMode != NavigationViewDisplayMode.Expanded;

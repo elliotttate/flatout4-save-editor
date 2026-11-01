@@ -19,7 +19,12 @@ public sealed partial class AllFieldsPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        session = (e.Parameter as MainPage)?.Session;
+        session = (e.Parameter as MainPage ?? (e.Parameter as AllFieldsNavigation)?.Shell)?.Session;
+        if (e.Parameter is AllFieldsNavigation { Filter: var filter })
+        {
+            FilterBox.Text = filter;
+        }
+
         string[] sections = ["All sections", .. (session?.Fields.Select(field => field.Section).Distinct() ?? [])];
         SectionBox.ItemsSource = sections;
         SectionBox.SelectedIndex = 0;

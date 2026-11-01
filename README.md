@@ -38,7 +38,7 @@ The start page lists the saves you opened recently, then everything it finds, gr
 - **Controls**: race and menu bindings shown as key, button and axis names for keyboard, gamepad and wheel, plus device tuning.
 - **Extensions** and **All fields** for the raw view: every value with its C++ name, offset and type.
 
-Ctrl+Tab and Ctrl+Shift+Tab step through the sections; More › Keyboard shortcuts lists every shortcut. Search (Ctrl+F) matches every word in any order and finds sections, settings, cars, tracks, trophies, career events and bindings and jumps straight to them. Long pages have a jump bar that follows the scroll position, and the navigation shows how many unsaved changes each section holds.
+Ctrl+Tab and Ctrl+Shift+Tab step through the sections; More › Keyboard shortcuts lists every shortcut. Search (Ctrl+F) matches every word in any order and finds sections, settings, cars, tracks, trophies, career events and bindings and jumps straight to them. Table rows also match their column names ("beetle motor", "brake keyboard"), and values no section shows, such as the save version, open All fields filtered to them. Long pages have a jump bar that follows the scroll position, and the navigation shows how many unsaved changes each section holds.
 
 **Review changes** (or the unsaved-changes pill) lists every edit as old → new value, grouped by section; select one to jump to it or revert just that value. Changed cards and table rows also carry their own revert button.
 

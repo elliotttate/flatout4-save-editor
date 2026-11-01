@@ -116,7 +116,8 @@ public sealed partial class MainPage : Page
         }
         else if (key == EditorCatalog.AllFieldsKey)
         {
-            ContentFrame.Navigate(typeof(AllFieldsPage), this, transition);
+            object parameter = target?.Target is SaveFieldViewModel field ? new AllFieldsNavigation(this, field.RawName) : this;
+            ContentFrame.Navigate(typeof(AllFieldsPage), parameter, transition);
         }
         else if (key == EditorCatalog.ChangesKey)
         {

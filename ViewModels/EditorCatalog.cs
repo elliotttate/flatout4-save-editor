@@ -50,6 +50,15 @@ public sealed class EditorCatalog
         [HealthKey] = "repair fix damaged broken corrupt recovery recovered problems errors"
     };
 
+    // Other words people use for a field than the ones in its label and description.
+    private static readonly IReadOnlyDictionary<string, string> FieldSynonyms = new Dictionary<string, string>
+    {
+        ["Credits"] = "money cash",
+        ["Vibration level"] = "rumble",
+        ["Speed unit"] = "mph km/h kmh",
+        ["AI difficulty"] = "opponents easy hard"
+    };
+
     private static readonly IReadOnlyList<PageViewModel> SearchablePages = Sections
         .Where(section => PageKeywords.ContainsKey(section.Key))
         .Select(section => new PageViewModel
@@ -67,6 +76,7 @@ public sealed class EditorCatalog
     private readonly List<TableBlock> tables = [];
     private readonly NoteBlock extensionNote = new() { Title = "Status" };
     private readonly Dictionary<string, SaveFieldViewModel[]> pageFields = [];
+    private HashSet<SaveFieldViewModel>? shownFields;
     private readonly Dictionary<SaveFieldViewModel, Func<ChangeEntry>> changeEntries = [];
 
     public EditorCatalog(SaveSession session)
@@ -292,7 +302,7 @@ public sealed class EditorCatalog
                     case FieldGroupBlock group:
                         foreach (SaveFieldViewModel field in group.Fields)
                         {
-                            AddIfMatch(results, query, field.Label, context, page.Glyph, page, block, field, $"{field.RawName} {field.Description}");
+                            AddIfMatch(results, query, field.Label, context, page.Glyph, page, block, field, $"{field.RawName} {field.Description} {FieldSynonyms.GetValueOrDefault(field.Label)}");
                         }
 
                         break;
@@ -311,6 +321,9 @@ public sealed class EditorCatalog
 
                         break;
                     case TableBlock table:
+                        // Column names only count when every word must match, so "beetle motor" finds
+                        // the Beetle's row in Cars without "motor" alone listing every car.
+                        string columns = string.Join(" ", table.Columns.Select(column => $"{column.Header} {column.Tooltip}"));
                         foreach (TableRowViewModel row in table.AllRows)
                         {
                             if (table.CanHideEmpty && row.IsEmpty)
@@ -318,7 +331,7 @@ public sealed class EditorCatalog
                                 continue;
                             }
 
-                            AddIfMatch(results, query, row.Title, context, page.Glyph, page, block, row, row.Subtitle);
+                            AddIfMatch(results, query, row.Title, context, page.Glyph, page, block, row, row.Subtitle, keywords: columns);
                         }
 
                         break;
@@ -326,16 +339,34 @@ public sealed class EditorCatalog
             }
         }
 
+        // Values no section shows (header markers, the version, unknown extension slots) open All
+        // fields filtered to them, below anything a section shows.
+        PageViewModel all = Page(AllFieldsKey)!;
+        shownFields ??= pageFields.Values.SelectMany(fields => fields).ToHashSet();
+        foreach (SaveFieldViewModel field in session.Fields)
+        {
+            if (!shownFields.Contains(field))
+            {
+                AddIfMatch(results, query, field.Label, $"{all.Title} › {field.Section}", all.Glyph, all, null, field, field.RawName, bonus: -12);
+            }
+        }
+
+        // Among equal matches, a title that starts with the first word ("brake key": "Brake / reverse"
+        // before "Handbrake") reads as the better hit.
+        string firstWord = Words(query)[0];
         return results
             .OrderByDescending(result => result.Rank)
+            .ThenByDescending(result => result.Title.StartsWith(firstWord, StringComparison.OrdinalIgnoreCase))
             .ThenBy(result => result.Title.Length)
             .Take(max)
             .ToArray();
     }
 
+    private static string[] Words(string query) => query.Split([' ', '·', '›', ','], StringSplitOptions.RemoveEmptyEntries);
+
     private static bool HasEveryWord(string query, string text)
     {
-        string[] words = query.Split([' ', '·', '›', ','], StringSplitOptions.RemoveEmptyEntries);
+        string[] words = Words(query);
         return words.Length > 1 && words.All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -349,7 +380,8 @@ public sealed class EditorCatalog
         PageBlock? block,
         object? target,
         string extra,
-        int bonus = 0)
+        int bonus = 0,
+        string keywords = "")
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -374,7 +406,9 @@ public sealed class EditorCatalog
             // "derby cup 1" finds "Derby · Tier 1 · Cup 1": every word, in any order.
             rank = 8;
         }
-        else if (HasEveryWord(query, $"{title} {context} {extra}"))
+        else if (HasEveryWord(query, $"{title} {context} {extra}") ||
+                 (keywords.Length > 0 && HasEveryWord(query, $"{title} {context} {extra} {keywords}") &&
+                  Words(query).Any(word => title.Contains(word, StringComparison.OrdinalIgnoreCase))))
         {
             rank = 4;
         }
