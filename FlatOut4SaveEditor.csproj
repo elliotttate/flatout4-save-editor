@@ -13,8 +13,10 @@
         <!-- Project Options -->
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-        <!-- Local builds say so in More > About; scripts/build_launcher.ps1 stamps the release version. -->
+        <!-- Local builds say so in More > About; scripts/build_release.ps1 stamps the release version. -->
         <Version>0.0.0-dev</Version>
+        <!-- Regenerate with scripts/generate_icon.ps1; the launchers and the Start menu shortcut use it too. -->
+        <ApplicationIcon>Assets\FlatOut4SaveEditor.ico</ApplicationIcon>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>FlatOut4SaveEditor</RootNamespace>
 
@@ -39,9 +41,11 @@
         <Compile Remove="Launcher\**\*.cs" />
         <EmbeddedResource Remove="Launcher\**" />
         <None Remove="Launcher\**" />
+        <None Remove="PortableLauncher\**" />
     </ItemGroup>
 
     <ItemGroup>
+        <Content Include="Assets\FlatOut4SaveEditor.ico" />
         <Content Include="Assets\SplashScreen.scale-200.png" />
         <Content Include="Assets\LockScreenLogo.scale-200.png" />
         <Content Include="Assets\Square150x150Logo.scale-200.png" />

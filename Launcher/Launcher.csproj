@@ -9,6 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>FlatOut4SaveEditorSetup</AssemblyName>
     <RootNamespace>FlatOut4SaveEditorLauncher</RootNamespace>
+    <ApplicationIcon>..\Assets\FlatOut4SaveEditor.ico</ApplicationIcon>
 
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

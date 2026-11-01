@@ -1,0 +1,62 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- The portable ZIP's top-level FlatOut4SaveEditor.exe. Built by scripts/build_release.ps1:
+       msbuild PortableLauncher\PortableLauncher.vcxproj -p:Configuration=Release -p:Platform=x64
+         -p:LauncherVersion=0.6.0 -p:LauncherFileVersion=0.6.0.0 -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6B1E2F4C-8D3A-4C7B-9E21-5A0F3C8D7E16}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)..\artifacts\portable-launcher\</OutDir>
+    <IntDir>$(ProjectDir)..\artifacts\portable-launcher-obj\</IntDir>
+    <TargetName>FlatOut4SaveEditor</TargetName>
+    <LauncherVersion Condition="'$(LauncherVersion)' == ''">0.0.0-dev</LauncherVersion>
+    <LauncherFileVersion Condition="'$(LauncherFileVersion)' == ''">0.0.0.0</LauncherFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <Optimization>MinSpace</Optimization>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <PreprocessorDefinitions>UNICODE;_UNICODE;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>User32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Launcher.cpp" />
+    <ResourceCompile Include="Launcher.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <!-- Version info for the .rc, so the exe's Properties show the release version. -->
+  <Target Name="WriteLauncherVersionHeader" BeforeTargets="ClCompile;ResourceCompile">
+    <MakeDir Directories="$(IntDir)" />
+    <WriteLinesToFile
+      File="$(IntDir)version.h"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true"
+      Lines="#define LAUNCHER_FILE_VERSION $(LauncherFileVersion.Replace('.', ','));#define LAUNCHER_VERSION &quot;$(LauncherVersion)\0&quot;" />
+  </Target>
+</Project>

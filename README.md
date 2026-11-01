@@ -50,7 +50,12 @@ Keep **Back up before saving** on unless you are editing a copy: it copies the f
 
 ## Download
 
-Use the latest GitHub release and download the `FlatOut4SaveEditor-v<version>-Setup.exe` asset. It extracts the app to `%LOCALAPPDATA%\FlatOut4SaveEditor\app` and launches it.
+Each GitHub release has two downloads. Pick one:
+
+- **`FlatOut4SaveEditor-v<version>-Windows-x64.zip`** (portable, installs nothing). Extract it anywhere writable and run `FlatOut4SaveEditor.exe`. The top level holds only that launcher, this README and an `App` folder with the editor and its runtime; keep them together. Delete the folder to remove it.
+- **`FlatOut4SaveEditor-v<version>-Setup.exe`** (optional install, no administrator rights). It extracts the editor to `%LOCALAPPDATA%\FlatOut4SaveEditor\app`, adds a **FlatOut 4 Save Editor** Start menu shortcut and starts it. Running a newer Setup updates the install (close the editor first). To remove it, delete that folder and the shortcut.
+
+`SHA256SUMS.txt` lists both files' checksums. Settings (recent saves, window position) live in `%LOCALAPPDATA%\FlatOut4SaveEditor` either way.
 
 ## Build
 
@@ -66,11 +71,13 @@ Release build:
 dotnet publish .\FlatOut4SaveEditor.csproj -c Release -p:Platform=x64 -r win-x64 --self-contained true
 ```
 
-One-file release asset:
+Release downloads (the portable ZIP and the Setup, plus checksums, in `artifacts\release`; needs Visual Studio's C++ tools for the portable launcher):
 
 ```powershell
-.\scripts\build_launcher.ps1 -Version 0.4.0
+.\scripts\build_release.ps1 -Version 0.6.0
 ```
+
+`scripts/generate_icon.ps1` redraws `Assets\FlatOut4SaveEditor.ico`, the icon of the app, both launchers and the Start menu shortcut.
 
 Every configuration carries the Windows App SDK runtime, so a Debug build runs without a matching runtime installed.
 

@@ -106,7 +106,8 @@ namespace FlatOut4SaveEditor
             }
 
             AppWindow appWindow = MainWindow.AppWindow;
-            appWindow.SetIcon("Assets/Square44x44Logo.targetsize-24_altform-unplated.png");
+            // Beside the exe, not the working directory: the portable launcher and shortcuts can start it from anywhere.
+            appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "FlatOut4SaveEditor.ico"));
             SizeWindow(appWindow, size);
             if (appWindow.Presenter is OverlappedPresenter presenter)
             {
