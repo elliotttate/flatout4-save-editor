@@ -269,6 +269,9 @@ public static class FlatOut4GameData
     public static string CarTypeName(long carType) =>
         CarTypeLabels.TryGetValue(carType, out string? name) ? name : $"Car type {carType}";
 
+    // A CarType key from the game's factories ("ALLSTARS_IceCreamVan") as the garage shows it.
+    public static string CarTypeLabel(string id) => FormatCarType(id);
+
     // Ids past the stock list come from tracks added later (e.g. the FlatOut 2 ports); their
     // localisation ids differ between builds, so they are shown by number rather than guessed.
     public static string TrackName(int slot) =>
